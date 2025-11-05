@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Cadastro Troca</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<!-- jsPDF for export (optional) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+<header class="header">
+  <div class="container header-inner">
+    <div><h1>Inventário de Impressoras</h1></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="cadastro-impressoras.html">Cadastro Impressoras</a>
+      <a href="lista-impressoras.html">Impressoras</a>
+      <a href="cadastro-troca.html" class="active">Cadastro Troca</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>Registrar Troca de Toner</h2>
+    <form id="formToner">
+      <label>Escola:</label>
+      <input list="escolasList" id="escolaToner" required>
+      <datalist id="escolasList"></datalist>
+
+      <label>Toner:</label>
+      <input list="tonersList" id="tonerToner" required>
+      <datalist id="tonersList"></datalist>
+
+      <label>Data da Troca:</label>
+      <input type="date" id="dataToner" required>
+
+      <label>Quantidade:</label>
+      <input type="number" id="quantidadeToner" value="1" min="1" required>
+
+      <label>Quem fez a troca:</label>
+      <input type="text" id="quemTrocou">
+
+      <label>Observações:</label>
+      <textarea id="obsToner"></textarea>
+
+      <div style="margin-top:10px;">
+        <button type="submit">Registrar Troca</button>
+        <button type="button" id="btnLimparToner">Limpar</button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

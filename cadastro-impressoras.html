@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Cadastro de Impressoras</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<header class="header">
+  <div class="container header-inner">
+    <div><h1>Inventário de Impressoras</h1></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="cadastro-impressoras.html" class="active">Cadastro Impressoras</a>
+      <a href="lista-impressoras.html">Impressoras</a>
+      <a href="cadastro-troca.html">Cadastro Troca</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>Cadastro de Impressoras</h2>
+    <form id="formCadastro">
+      <label>Modelo:</label>
+      <input type="text" id="modelo" required>
+      <label>Toner:</label>
+      <input type="text" id="toner" required>
+      <label>Escola:</label>
+      <input type="text" id="escola" required>
+      <label>Propriedade:</label>
+      <select id="propriedade">
+        <option value="Própria">Própria</option>
+        <option value="Estado">Estado</option>
+      </select>
+      <div style="margin-top:10px;">
+        <button type="submit">Cadastrar</button>
+        <button type="button" id="limparForm">Limpar</button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

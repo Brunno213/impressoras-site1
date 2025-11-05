@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Relatórios</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+<header class="header">
+  <div class="container header-inner">
+    <div><h1>Inventário de Impressoras</h1></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="cadastro-impressoras.html">Cadastro Impressoras</a>
+      <a href="lista-impressoras.html">Impressoras</a>
+      <a href="cadastro-troca.html">Cadastro Troca</a>
+      <a href="relatorios.html" class="active">Relatórios</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>Relatórios de Troca</h2>
+    <div id="filtros">
+      <input type="text" id="filtroEscolaRel" placeholder="Filtrar por escola..." class="search">
+      <input type="month" id="filtroMesRel" class="search">
+      <button id="btnLimparFiltrosRel" class="small">Limpar</button>
+      <button id="btnExportarPDFRel" class="small">Exportar PDF</button>
+      <button id="btnPrintRel" class="small">Imprimir</button>
+    </div>
+
+    <table>
+      <thead><tr><th>Escola</th><th>Toner</th><th>Quantidade</th><th>Data</th><th>Quem</th><th>Obs</th></tr></thead>
+      <tbody id="tabelaRel"></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

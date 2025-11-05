@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Lista de Impressoras</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<header class="header">
+  <div class="container header-inner">
+    <div><h1>Inventário de Impressoras</h1></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="cadastro-impressoras.html">Cadastro Impressoras</a>
+      <a href="lista-impressoras.html" class="active">Impressoras</a>
+      <a href="cadastro-troca.html">Cadastro Troca</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>Lista de Impressoras</h2>
+    <div class="controls">
+      <input class="search" id="filtroEscola" placeholder="Filtrar por escola...">
+      <input class="search" id="filtroToner" placeholder="Filtrar por toner...">
+    </div>
+    <table>
+      <thead><tr><th>Modelo</th><th>Toner</th><th>Escola</th><th>Propriedade</th><th>Data</th><th>Ação</th></tr></thead>
+      <tbody id="lista"></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

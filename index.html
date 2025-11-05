@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Inventário de Impressoras</title>
+<link rel="stylesheet" href="styles.css">
+<!-- Firebase compat (usado para inicializar ambos os projetos) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<header class="header">
+  <div class="container header-inner">
+    <div>
+      <h1>Inventário de Impressoras</h1>
+      <div class="muted">Gerencie impressoras, trocas de toner e relatórios</div>
+    </div>
+    <nav>
+      <a href="index.html" class="active">Home</a>
+      <a href="cadastro-impressoras.html">Cadastro Impressoras</a>
+      <a href="lista-impressoras.html">Impressoras</a>
+      <a href="cadastro-troca.html">Cadastro Troca</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>Bem-vindo</h2>
+    <p class="muted">Use o menu para gerenciar impressoras e registros de trocas de toner.</p>
+    <div style="margin-top:12px;">
+      <a class="tag" href="cadastro-impressoras.html">Cadastrar impressora</a>
+      <a class="tag" href="lista-impressoras.html">Ver impressoras</a>
+      <a class="tag" href="cadastro-troca.html">Registrar troca</a>
+    </div>
+  </div>
+</main>
+
+<footer>Feito com ❤️</footer>
+</body>
+</html>
