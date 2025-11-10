@@ -50,8 +50,15 @@
       <label>Quantidade:</label>
       <input type="number" id="quantidade" min="1" required>
 
-      <label>Data da Troca:</label>
+      <label>Data da Operação:</label>
       <input type="date" id="data" required>
+
+      <label>Tipo de Operação:</label>
+      <select id="tipoOperacao" required>
+        <option value="">Selecione...</option>
+        <option value="Troca">Troca</option>
+        <option value="Recarga">Recarga</option>
+      </select>
 
       <button type="submit" id="btnSalvar">Registrar</button>
     </form>
@@ -63,6 +70,7 @@
           <th>Modelo</th>
           <th>Quantidade</th>
           <th>Data</th>
+          <th>Tipo</th>
         </tr>
       </thead>
       <tbody id="tabelaRegistros"></tbody>
@@ -145,32 +153,32 @@
     });
   });
 
-  // ===== UTIL =====
   function escapeHtml(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
-  // ===== SEÇÃO 1: CONTROLE DE TROCAS =====
+  // ===== CONTROLE DE TROCAS =====
   const formRegistro = document.getElementById('formRegistro');
   const tabelaRegistros = document.getElementById('tabelaRegistros');
   const escola = document.getElementById('escola');
   const modelo = document.getElementById('modelo');
   const quantidade = document.getElementById('quantidade');
   const data = document.getElementById('data');
+  const tipoOperacao = document.getElementById('tipoOperacao');
 
-  async function carregarTrocas(){
+  function carregarTrocas(){
     const q = query(collection(db,'registros'), orderBy('data','desc'));
     onSnapshot(q, snap=>{
       tabelaRegistros.innerHTML='';
       snap.forEach(docSnap=>{
         const r=docSnap.data();
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td>`;
+        tr.innerHTML=`<td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td><td>${escapeHtml(r.tipo || '')}</td>`;
         tabelaRegistros.appendChild(tr);
       });
     });
   }
   carregarTrocas();
 
-  // ===== SEÇÃO 2: CADASTRO DE TONERS =====
+  // ===== CADASTRO DE TONERS =====
   const formCadastroToner=document.getElementById('formCadastroToner');
   const tabelaToners=document.getElementById('tabelaToners');
   const tabelaConsulta=document.getElementById('tabelaConsulta');
@@ -206,47 +214,54 @@
     alert('Toner cadastrado com sucesso!');
   });
 
-  // ===== DESCONTAR DO ESTOQUE AO REGISTRAR TROCA =====
+  // ===== REGISTRO DE TROCA OU RECARGA =====
   formRegistro.addEventListener('submit', async e=>{
     e.preventDefault();
 
-    const novaTroca = {
+    const novaOperacao = {
       escola: escola.value.trim(),
       modelo: modelo.value.trim(),
       quantidade: parseInt(quantidade.value),
-      data: data.value
+      data: data.value,
+      tipo: tipoOperacao.value
     };
 
-    if(!novaTroca.escola || !novaTroca.modelo || !novaTroca.quantidade || !novaTroca.data){
+    if(!novaOperacao.escola || !novaOperacao.modelo || !novaOperacao.quantidade || !novaOperacao.data || !novaOperacao.tipo){
       alert('Preencha todos os campos.');
       return;
     }
 
-    // Busca o toner correspondente
+    if(novaOperacao.tipo === "Recarga"){
+      // Apenas registra, sem mexer no estoque
+      await addDoc(collection(db, 'registros'), novaOperacao);
+      alert("Recarga registrada com sucesso!");
+      formRegistro.reset();
+      return;
+    }
+
+    // Se for troca: descontar estoque
     const tonersRef = collection(db, 'toners');
-    const q = query(tonersRef, where('modelo', '==', novaTroca.modelo));
+    const q = query(tonersRef, where('modelo', '==', novaOperacao.modelo));
     const querySnap = await getDocs(q);
 
     if(querySnap.empty){
-      alert(`O modelo "${novaTroca.modelo}" não está cadastrado no estoque!`);
+      alert(`O modelo "${novaOperacao.modelo}" não está cadastrado no estoque!`);
       return;
     }
 
     const tonerDoc = querySnap.docs[0];
     const tonerData = tonerDoc.data();
-    const novaQtd = tonerData.quantidade - novaTroca.quantidade;
+    const novaQtd = tonerData.quantidade - novaOperacao.quantidade;
 
     if(novaQtd < 0){
       alert(`Estoque insuficiente! Estoque atual: ${tonerData.quantidade}`);
       return;
     }
 
-    // Atualiza estoque e salva a troca
     await updateDoc(doc(db, 'toners', tonerDoc.id), { quantidade: novaQtd });
-    await addDoc(collection(db, 'registros'), novaTroca);
-
+    await addDoc(collection(db, 'registros'), novaOperacao);
     formRegistro.reset();
-    alert('Troca registrada e estoque atualizado com sucesso!');
+    alert('Troca registrada e estoque atualizado!');
   });
 </script>
 </body>
