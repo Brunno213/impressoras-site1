@@ -54,16 +54,7 @@
       <input type="date" id="data" required>
 
       <button type="submit" id="btnSalvar">Registrar</button>
-      <button type="button" id="btnCancelarEdicao" style="display:none; background:#999;">Cancelar Edição</button>
     </form>
-
-    <div id="filtros">
-      <input type="text" id="filtroEscola" placeholder="Filtrar por escola...">
-      <input type="month" id="filtroMes">
-      <button id="btnLimparFiltros">Limpar Filtros</button>
-      <button id="btnExportarPDF">Exportar PDF</button>
-      <button id="btnImprimirRelatorio">Imprimir Relatório</button>
-    </div>
 
     <table>
       <thead>
@@ -72,7 +63,6 @@
           <th>Modelo</th>
           <th>Quantidade</th>
           <th>Data</th>
-          <th>Ações</th>
         </tr>
       </thead>
       <tbody id="tabelaRegistros"></tbody>
@@ -101,7 +91,6 @@
           <th>Modelo</th>
           <th>Quantidade</th>
           <th>Impressora</th>
-          <th>Ações</th>
         </tr>
       </thead>
       <tbody id="tabelaToners"></tbody>
@@ -128,7 +117,9 @@
 <!-- SCRIPT FIREBASE -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+  import { 
+    getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, getDocs, where 
+  } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBSAMAhiEbBPCNqNpv-dM64Pa_xclwqc54",
@@ -142,63 +133,58 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ===== MENU FUNCIONAL =====
+  // ===== MENU =====
   const botoesMenu = document.querySelectorAll('.menu-btn');
   const secoes = document.querySelectorAll('section');
-
-  botoesMenu.forEach(botao => {
-    botao.addEventListener('click', () => {
-      // Remove ativo de todos
-      botoesMenu.forEach(b => b.classList.remove('active'));
-      secoes.forEach(s => s.classList.remove('active'));
-
-      // Ativa o clicado
+  botoesMenu.forEach(botao=>{
+    botao.addEventListener('click',()=>{
+      botoesMenu.forEach(b=>b.classList.remove('active'));
+      secoes.forEach(s=>s.classList.remove('active'));
       botao.classList.add('active');
       document.getElementById(botao.dataset.section).classList.add('active');
     });
   });
 
+  // ===== UTIL =====
+  function escapeHtml(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
   // ===== SEÇÃO 1: CONTROLE DE TROCAS =====
   const formRegistro = document.getElementById('formRegistro');
   const tabelaRegistros = document.getElementById('tabelaRegistros');
+  const escola = document.getElementById('escola');
+  const modelo = document.getElementById('modelo');
+  const quantidade = document.getElementById('quantidade');
+  const data = document.getElementById('data');
 
-  function escapeHtml(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-
-  function carregarRegistros(){
-    const q = query(collection(db, 'registros'), orderBy('data','desc'));
-    onSnapshot(q, snapshot=>{
+  async function carregarTrocas(){
+    const q = query(collection(db,'registros'), orderBy('data','desc'));
+    onSnapshot(q, snap=>{
       tabelaRegistros.innerHTML='';
-      snapshot.forEach(docSnap=>{
-        const r = docSnap.data();
+      snap.forEach(docSnap=>{
+        const r=docSnap.data();
         const tr=document.createElement('tr');
-        tr.innerHTML = `
-          <td>${escapeHtml(r.escola)}</td>
-          <td>${escapeHtml(r.modelo)}</td>
-          <td>${r.quantidade}</td>
-          <td>${r.data}</td>
-          <td></td>`;
+        tr.innerHTML=`<td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td>`;
         tabelaRegistros.appendChild(tr);
       });
     });
   }
-  carregarRegistros();
+  carregarTrocas();
 
   // ===== SEÇÃO 2: CADASTRO DE TONERS =====
-  const formCadastroToner = document.getElementById('formCadastroToner');
-  const tabelaToners = document.getElementById('tabelaToners');
-  const tabelaConsulta = document.getElementById('tabelaConsulta');
+  const formCadastroToner=document.getElementById('formCadastroToner');
+  const tabelaToners=document.getElementById('tabelaToners');
+  const tabelaConsulta=document.getElementById('tabelaConsulta');
 
   function carregarToners(){
     const q = query(collection(db,'toners'), orderBy('modelo'));
-    onSnapshot(q, snapshot=>{
+    onSnapshot(q, snap=>{
       tabelaToners.innerHTML='';
       tabelaConsulta.innerHTML='';
-      snapshot.forEach(docSnap=>{
+      snap.forEach(docSnap=>{
         const d=docSnap.data();
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td><td></td>`;
+        tr.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
         tabelaToners.appendChild(tr);
-
         const tr2=document.createElement('tr');
         tr2.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
         tabelaConsulta.appendChild(tr2);
@@ -218,6 +204,49 @@
     await addDoc(collection(db,'toners'),novo);
     formCadastroToner.reset();
     alert('Toner cadastrado com sucesso!');
+  });
+
+  // ===== DESCONTAR DO ESTOQUE AO REGISTRAR TROCA =====
+  formRegistro.addEventListener('submit', async e=>{
+    e.preventDefault();
+
+    const novaTroca = {
+      escola: escola.value.trim(),
+      modelo: modelo.value.trim(),
+      quantidade: parseInt(quantidade.value),
+      data: data.value
+    };
+
+    if(!novaTroca.escola || !novaTroca.modelo || !novaTroca.quantidade || !novaTroca.data){
+      alert('Preencha todos os campos.');
+      return;
+    }
+
+    // Busca o toner correspondente
+    const tonersRef = collection(db, 'toners');
+    const q = query(tonersRef, where('modelo', '==', novaTroca.modelo));
+    const querySnap = await getDocs(q);
+
+    if(querySnap.empty){
+      alert(`O modelo "${novaTroca.modelo}" não está cadastrado no estoque!`);
+      return;
+    }
+
+    const tonerDoc = querySnap.docs[0];
+    const tonerData = tonerDoc.data();
+    const novaQtd = tonerData.quantidade - novaTroca.quantidade;
+
+    if(novaQtd < 0){
+      alert(`Estoque insuficiente! Estoque atual: ${tonerData.quantidade}`);
+      return;
+    }
+
+    // Atualiza estoque e salva a troca
+    await updateDoc(doc(db, 'toners', tonerDoc.id), { quantidade: novaQtd });
+    await addDoc(collection(db, 'registros'), novaTroca);
+
+    formRegistro.reset();
+    alert('Troca registrada e estoque atualizado com sucesso!');
   });
 </script>
 </body>
