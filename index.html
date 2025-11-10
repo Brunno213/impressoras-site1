@@ -1,43 +1,255 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Inventário de Impressoras</title>
-<link rel="stylesheet" href="styles.css">
-<!-- Firebase compat (usado para inicializar ambos os projetos) -->
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Controle de Troca de Toner e Tinta</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:20px; }
+  .container { max-width:900px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 0 8px rgba(0,0,0,0.1); }
+  h2 { text-align:center; color:#444; }
+  form { display:grid; gap:10px; margin-bottom:20px; }
+  label { font-weight:bold; }
+  input, select, button { padding:8px; font-size:14px; border-radius:5px; border:1px solid #ccc; }
+  button { cursor:pointer; background:#40739e; color:white; border:none; }
+  button:hover { background:#2f5d83; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+  th { background:#40739e; color:white; }
+  #filtros { display:flex; gap:10px; margin-top:20px; align-items:center; flex-wrap:wrap; }
+  #btnLimparFiltros { background:#999; }
+  #btnLimparFiltros:hover { background:#777; }
+</style>
 </head>
 <body>
-<header class="header">
-  <div class="container header-inner">
-    <div>
-      <h1>Inventário de Impressoras</h1>
-      <div class="muted">Gerencie impressoras, trocas de toner e relatórios</div>
-    </div>
-    <nav>
-      <a href="index.html" class="active">Home</a>
-      <a href="cadastro-impressoras.html">Cadastro Impressoras</a>
-      <a href="lista-impressoras.html">Impressoras</a>
-      <a href="cadastro-troca.html">Cadastro Troca</a>
-      <a href="relatorios.html">Relatórios</a>
-    </nav>
-  </div>
-</header>
+<div class="container">
+  <h2>Controle de Toners</h2>
 
-<main class="container">
-  <div class="card">
-    <h2>Bem-vindo</h2>
-    <p class="muted">Use o menu para gerenciar impressoras e registros de trocas de toner.</p>
-    <div style="margin-top:12px;">
-      <a class="tag" href="cadastro-impressoras.html">Cadastrar impressora</a>
-      <a class="tag" href="lista-impressoras.html">Ver impressoras</a>
-      <a class="tag" href="cadastro-troca.html">Registrar troca</a>
-    </div>
-  </div>
-</main>
+  <!-- MENU -->
+  <nav style="display:flex; justify-content:center; gap:15px; margin-bottom:20px;">
+    <button class="menu-btn" data-section="secControle">Controle de Trocas</button>
+    <button class="menu-btn" data-section="secCadastro">Cadastro de Toners</button>
+    <button class="menu-btn" data-section="secConsulta">Consulta de Toners</button>
+  </nav>
 
-<footer>Feito com ❤️</footer>
+  <!-- SEÇÃO 1: CONTROLE DE TROCAS -->
+  <section id="secControle" class="secao">
+    <form id="formRegistro">
+      <label>Nome da Escola:</label>
+      <input list="listaEscolas" id="escola" required>
+      <datalist id="listaEscolas"></datalist>
+
+      <label>Modelo do Toner/Tinta:</label>
+      <input list="listaModelos" id="modelo" required>
+      <datalist id="listaModelos"></datalist>
+
+      <label>Quantidade:</label>
+      <input type="number" id="quantidade" min="1" required>
+
+      <label>Data da Troca:</label>
+      <input type="date" id="data" required>
+
+      <button type="submit" id="btnSalvar">Registrar</button>
+      <button type="button" id="btnCancelarEdicao" style="display:none; background:#999;">Cancelar Edição</button>
+    </form>
+
+    <div id="filtros">
+      <input type="text" id="filtroEscola" placeholder="Filtrar por escola...">
+      <input type="month" id="filtroMes">
+      <button id="btnLimparFiltros">Limpar Filtros</button>
+      <button id="btnExportarPDF">Exportar PDF</button>
+      <button id="btnImprimirRelatorio">Imprimir Relatório</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Escola</th>
+          <th>Modelo</th>
+          <th>Quantidade</th>
+          <th>Data</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaRegistros"></tbody>
+    </table>
+  </section>
+
+  <!-- SEÇÃO 2: CADASTRO DE TONERS -->
+  <section id="secCadastro" class="secao" style="display:none;">
+    <h3>Cadastro de Modelos de Toner</h3>
+    <form id="formCadastroToner">
+      <label>Modelo:</label>
+      <input type="text" id="cadModelo" required>
+
+      <label>Quantidade:</label>
+      <input type="number" id="cadQuantidade" min="1" required>
+
+      <label>Impressora:</label>
+      <input type="text" id="cadImpressora" required>
+
+      <button type="submit">Cadastrar</button>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Modelo</th>
+          <th>Quantidade</th>
+          <th>Impressora</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaToners"></tbody>
+    </table>
+  </section>
+
+  <!-- SEÇÃO 3: CONSULTA DE TONERS -->
+  <section id="secConsulta" class="secao" style="display:none;">
+    <h3>Consulta de Toners Cadastrados</h3>
+    <input type="text" id="filtroModeloConsulta" placeholder="Filtrar por modelo...">
+    <table>
+      <thead>
+        <tr>
+          <th>Modelo</th>
+          <th>Quantidade</th>
+          <th>Impressora</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaConsulta"></tbody>
+    </table>
+  </section>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSAMAhiEbBPCNqNpv-dM64Pa_xclwqc54",
+    authDomain: "controletoner.firebaseapp.com",
+    projectId: "controletoner",
+    storageBucket: "controletoner.firebasestorage.app",
+    messagingSenderId: "821741941730",
+    appId: "1:821741941730:web:32bd9d82c58deef8a37fbb"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ===== MENU =====
+  const botoesMenu = document.querySelectorAll('.menu-btn');
+  const secoes = document.querySelectorAll('.secao');
+  botoesMenu.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      secoes.forEach(s=>s.style.display='none');
+      document.getElementById(btn.dataset.section).style.display='block';
+      botoesMenu.forEach(b=>b.style.background='');
+      btn.style.background='#2f5d83';
+      btn.style.color='white';
+    });
+  });
+
+  // ===== CONTROLE DE TROCAS (SEÇÃO 1) =====
+  const formRegistro = document.getElementById('formRegistro');
+  const tabelaRegistros = document.getElementById('tabelaRegistros');
+  const filtroEscola = document.getElementById('filtroEscola');
+  const filtroMes = document.getElementById('filtroMes');
+  const btnLimparFiltros = document.getElementById('btnLimparFiltros');
+  const btnExportarPDF = document.getElementById('btnExportarPDF');
+  const btnImprimirRelatorio = document.getElementById('btnImprimirRelatorio');
+  const btnSalvar = document.getElementById('btnSalvar');
+  const btnCancelarEdicao = document.getElementById('btnCancelarEdicao');
+  const escola = document.getElementById('escola');
+  const modelo = document.getElementById('modelo');
+  const quantidade = document.getElementById('quantidade');
+  const data = document.getElementById('data');
+
+  let registros = [];
+  let registrosDocs = [];
+  let idEmEdicao = null;
+
+  import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+
+  function escapeHtml(str){ return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // Listener da coleção de trocas
+  function iniciarListenerTrocas() {
+    const q = query(collection(db, 'registros'), orderBy('data','desc'));
+    onSnapshot(q, snapshot=>{
+      registros=[]; registrosDocs=[];
+      snapshot.forEach(docSnap=>{
+        registros.push(docSnap.data());
+        registrosDocs.push({id:docSnap.id,data:docSnap.data()});
+      });
+      atualizarTabelaTrocas();
+    });
+  }
+
+  function atualizarTabelaTrocas(){
+    tabelaRegistros.innerHTML='';
+    registros.forEach((r,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${escapeHtml(r.escola)}</td>
+        <td>${escapeHtml(r.modelo)}</td>
+        <td>${r.quantidade}</td>
+        <td>${r.data}</td>
+        <td>
+          <button data-i="${i}" class="editar">✏️</button>
+          <button data-i="${i}" class="excluir">🗑️</button>
+        </td>`;
+      tabelaRegistros.appendChild(tr);
+    });
+  }
+
+  iniciarListenerTrocas();
+
+  // ===== CADASTRO DE TONERS (SEÇÃO 2) =====
+  const formCadastroToner = document.getElementById('formCadastroToner');
+  const tabelaToners = document.getElementById('tabelaToners');
+  const tabelaConsulta = document.getElementById('tabelaConsulta');
+  const filtroModeloConsulta = document.getElementById('filtroModeloConsulta');
+
+  function iniciarListenerToners(){
+    const q = query(collection(db,'toners'), orderBy('modelo'));
+    onSnapshot(q, snapshot=>{
+      tabelaToners.innerHTML='';
+      tabelaConsulta.innerHTML='';
+      snapshot.forEach(docSnap=>{
+        const d = docSnap.data();
+        const id = docSnap.id;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(d.modelo)}</td>
+          <td>${d.quantidade}</td>
+          <td>${escapeHtml(d.impressora)}</td>
+          <td><button data-id="${id}" class="delToner">🗑️</button></td>`;
+        tabelaToners.appendChild(tr);
+
+        const tr2 = document.createElement('tr');
+        tr2.innerHTML = `<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
+        tabelaConsulta.appendChild(tr2);
+      });
+    });
+  }
+
+  iniciarListenerToners();
+
+  formCadastroToner.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const novo = {
+      modelo: cadModelo.value.trim(),
+      quantidade: parseInt(cadQuantidade.value),
+      impressora: cadImpressora.value.trim()
+    };
+    await addDoc(collection(db,'toners'),novo);
+    formCadastroToner.reset();
+  });
+</script>
 </body>
+
 </html>
+
