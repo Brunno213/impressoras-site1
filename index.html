@@ -23,6 +23,9 @@
   .menu-btn.active { background:#2f5d83; color:white; }
   section { display:none; }
   section.active { display:block; }
+  .btn-acoes { display:flex; gap:5px; justify-content:center; }
+  .btn-editar { background:#e1b12c; }
+  .btn-excluir { background:#e84118; }
 </style>
 </head>
 <body>
@@ -61,6 +64,7 @@
       </select>
 
       <button type="submit" id="btnSalvar">Registrar</button>
+      <button type="button" id="btnCancelarEdicao" style="display:none; background:#999;">Cancelar</button>
     </form>
 
     <table>
@@ -71,6 +75,7 @@
           <th>Quantidade</th>
           <th>Data</th>
           <th>Tipo</th>
+          <th>Ações</th>
         </tr>
       </thead>
       <tbody id="tabelaRegistros"></tbody>
@@ -90,7 +95,8 @@
       <label>Impressora:</label>
       <input type="text" id="cadImpressora" required>
 
-      <button type="submit">Cadastrar</button>
+      <button type="submit" id="btnSalvarToner">Cadastrar</button>
+      <button type="button" id="btnCancelarToner" style="display:none; background:#999;">Cancelar</button>
     </form>
 
     <table>
@@ -99,6 +105,7 @@
           <th>Modelo</th>
           <th>Quantidade</th>
           <th>Impressora</th>
+          <th>Ações</th>
         </tr>
       </thead>
       <tbody id="tabelaToners"></tbody>
@@ -126,7 +133,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
   import { 
-    getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, getDocs, where 
+    getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, getDocs, where, deleteDoc 
   } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -155,7 +162,7 @@
 
   function escapeHtml(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
-  // ===== CONTROLE DE TROCAS =====
+  // ======== CONTROLE DE TROCAS ==========
   const formRegistro = document.getElementById('formRegistro');
   const tabelaRegistros = document.getElementById('tabelaRegistros');
   const escola = document.getElementById('escola');
@@ -163,6 +170,10 @@
   const quantidade = document.getElementById('quantidade');
   const data = document.getElementById('data');
   const tipoOperacao = document.getElementById('tipoOperacao');
+  const btnSalvar = document.getElementById('btnSalvar');
+  const btnCancelarEdicao = document.getElementById('btnCancelarEdicao');
+
+  let idEmEdicao = null;
 
   function carregarTrocas(){
     const q = query(collection(db,'registros'), orderBy('data','desc'));
@@ -171,50 +182,55 @@
       snap.forEach(docSnap=>{
         const r=docSnap.data();
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td><td>${escapeHtml(r.tipo || '')}</td>`;
+        tr.innerHTML=`
+          <td>${escapeHtml(r.escola)}</td>
+          <td>${escapeHtml(r.modelo)}</td>
+          <td>${r.quantidade}</td>
+          <td>${r.data}</td>
+          <td>${escapeHtml(r.tipo)}</td>
+          <td class="btn-acoes">
+            <button class="btn-editar" data-id="${docSnap.id}">✏️</button>
+            <button class="btn-excluir" data-id="${docSnap.id}">🗑️</button>
+          </td>`;
         tabelaRegistros.appendChild(tr);
+      });
+
+      document.querySelectorAll('.btn-excluir').forEach(btn=>{
+        btn.onclick = async ()=>{
+          if(confirm("Deseja excluir este registro?")){
+            await deleteDoc(doc(db,'registros',btn.dataset.id));
+          }
+        };
+      });
+
+      document.querySelectorAll('.btn-editar').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.dataset.id;
+          const snap = await getDocs(query(collection(db,'registros'), where('__name__','==',id)));
+          if(!snap.empty){
+            const d = snap.docs[0].data();
+            idEmEdicao = id;
+            escola.value = d.escola;
+            modelo.value = d.modelo;
+            quantidade.value = d.quantidade;
+            data.value = d.data;
+            tipoOperacao.value = d.tipo;
+            btnSalvar.textContent = "Salvar Alterações";
+            btnCancelarEdicao.style.display = "inline-block";
+          }
+        };
       });
     });
   }
   carregarTrocas();
 
-  // ===== CADASTRO DE TONERS =====
-  const formCadastroToner=document.getElementById('formCadastroToner');
-  const tabelaToners=document.getElementById('tabelaToners');
-  const tabelaConsulta=document.getElementById('tabelaConsulta');
+  btnCancelarEdicao.onclick = ()=>{
+    idEmEdicao=null;
+    formRegistro.reset();
+    btnSalvar.textContent="Registrar";
+    btnCancelarEdicao.style.display="none";
+  };
 
-  function carregarToners(){
-    const q = query(collection(db,'toners'), orderBy('modelo'));
-    onSnapshot(q, snap=>{
-      tabelaToners.innerHTML='';
-      tabelaConsulta.innerHTML='';
-      snap.forEach(docSnap=>{
-        const d=docSnap.data();
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
-        tabelaToners.appendChild(tr);
-        const tr2=document.createElement('tr');
-        tr2.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
-        tabelaConsulta.appendChild(tr2);
-      });
-    });
-  }
-  carregarToners();
-
-  formCadastroToner.addEventListener('submit', async e=>{
-    e.preventDefault();
-    const novo = {
-      modelo: cadModelo.value.trim(),
-      quantidade: parseInt(cadQuantidade.value),
-      impressora: cadImpressora.value.trim()
-    };
-    if(!novo.modelo || !novo.quantidade || !novo.impressora) return alert("Preencha todos os campos!");
-    await addDoc(collection(db,'toners'),novo);
-    formCadastroToner.reset();
-    alert('Toner cadastrado com sucesso!');
-  });
-
-  // ===== REGISTRO DE TROCA OU RECARGA =====
   formRegistro.addEventListener('submit', async e=>{
     e.preventDefault();
 
@@ -231,38 +247,122 @@
       return;
     }
 
+    if(idEmEdicao){
+      await updateDoc(doc(db,'registros',idEmEdicao), novaOperacao);
+      idEmEdicao=null;
+      formRegistro.reset();
+      btnSalvar.textContent="Registrar";
+      btnCancelarEdicao.style.display="none";
+      alert("Registro atualizado!");
+      return;
+    }
+
     if(novaOperacao.tipo === "Recarga"){
-      // Apenas registra, sem mexer no estoque
       await addDoc(collection(db, 'registros'), novaOperacao);
-      alert("Recarga registrada com sucesso!");
+      alert("Recarga registrada!");
       formRegistro.reset();
       return;
     }
 
-    // Se for troca: descontar estoque
-    const tonersRef = collection(db, 'toners');
-    const q = query(tonersRef, where('modelo', '==', novaOperacao.modelo));
-    const querySnap = await getDocs(q);
-
-    if(querySnap.empty){
-      alert(`O modelo "${novaOperacao.modelo}" não está cadastrado no estoque!`);
-      return;
-    }
-
-    const tonerDoc = querySnap.docs[0];
+    const q = query(collection(db,'toners'), where('modelo','==',novaOperacao.modelo));
+    const qsnap = await getDocs(q);
+    if(qsnap.empty){ alert("Modelo não encontrado no estoque!"); return; }
+    const tonerDoc = qsnap.docs[0];
     const tonerData = tonerDoc.data();
     const novaQtd = tonerData.quantidade - novaOperacao.quantidade;
+    if(novaQtd < 0){ alert("Estoque insuficiente!"); return; }
 
-    if(novaQtd < 0){
-      alert(`Estoque insuficiente! Estoque atual: ${tonerData.quantidade}`);
-      return;
-    }
-
-    await updateDoc(doc(db, 'toners', tonerDoc.id), { quantidade: novaQtd });
-    await addDoc(collection(db, 'registros'), novaOperacao);
+    await updateDoc(doc(db,'toners',tonerDoc.id), {quantidade: novaQtd});
+    await addDoc(collection(db,'registros'), novaOperacao);
+    alert("Troca registrada e estoque atualizado!");
     formRegistro.reset();
-    alert('Troca registrada e estoque atualizado!');
+  });
+
+  // ======== CADASTRO DE TONERS ==========
+  const formCadastroToner=document.getElementById('formCadastroToner');
+  const tabelaToners=document.getElementById('tabelaToners');
+  const tabelaConsulta=document.getElementById('tabelaConsulta');
+  const btnSalvarToner=document.getElementById('btnSalvarToner');
+  const btnCancelarToner=document.getElementById('btnCancelarToner');
+  let idTonerEdicao = null;
+
+  function carregarToners(){
+    const q = query(collection(db,'toners'), orderBy('modelo'));
+    onSnapshot(q, snap=>{
+      tabelaToners.innerHTML='';
+      tabelaConsulta.innerHTML='';
+      snap.forEach(docSnap=>{
+        const d=docSnap.data();
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${escapeHtml(d.modelo)}</td>
+          <td>${d.quantidade}</td>
+          <td>${escapeHtml(d.impressora)}</td>
+          <td class="btn-acoes">
+            <button class="btn-editar" data-id="${docSnap.id}">✏️</button>
+            <button class="btn-excluir" data-id="${docSnap.id}">🗑️</button>
+          </td>`;
+        tabelaToners.appendChild(tr);
+
+        const tr2=document.createElement('tr');
+        tr2.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
+        tabelaConsulta.appendChild(tr2);
+      });
+
+      document.querySelectorAll('#tabelaToners .btn-excluir').forEach(btn=>{
+        btn.onclick = async ()=>{
+          if(confirm("Excluir este toner?")) await deleteDoc(doc(db,'toners',btn.dataset.id));
+        };
+      });
+
+      document.querySelectorAll('#tabelaToners .btn-editar').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const snap = await getDocs(query(collection(db,'toners'), where('__name__','==',btn.dataset.id)));
+          if(!snap.empty){
+            const d = snap.docs[0].data();
+            idTonerEdicao = btn.dataset.id;
+            cadModelo.value = d.modelo;
+            cadQuantidade.value = d.quantidade;
+            cadImpressora.value = d.impressora;
+            btnSalvarToner.textContent="Salvar Alterações";
+            btnCancelarToner.style.display="inline-block";
+          }
+        };
+      });
+    });
+  }
+  carregarToners();
+
+  btnCancelarToner.onclick = ()=>{
+    idTonerEdicao=null;
+    formCadastroToner.reset();
+    btnSalvarToner.textContent="Cadastrar";
+    btnCancelarToner.style.display="none";
+  };
+
+  formCadastroToner.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const novo = {
+      modelo: cadModelo.value.trim(),
+      quantidade: parseInt(cadQuantidade.value),
+      impressora: cadImpressora.value.trim()
+    };
+    if(!novo.modelo || !novo.quantidade || !novo.impressora){ alert("Preencha todos os campos!"); return; }
+
+    if(idTonerEdicao){
+      await updateDoc(doc(db,'toners',idTonerEdicao), novo);
+      idTonerEdicao=null;
+      btnSalvarToner.textContent="Cadastrar";
+      btnCancelarToner.style.display="none";
+      formCadastroToner.reset();
+      alert("Toner atualizado!");
+    }else{
+      await addDoc(collection(db,'toners'),novo);
+      formCadastroToner.reset();
+      alert('Toner cadastrado!');
+    }
   });
 </script>
 </body>
 </html>
+
