@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Controle de Troca de Toner e Tinta</title>
+<title>Controle de Toner e Tinta</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 <style>
   body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:20px; }
-  .container { max-width:900px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 0 8px rgba(0,0,0,0.1); }
+  .container { max-width:1000px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 0 8px rgba(0,0,0,0.1); }
   h2 { text-align:center; color:#444; }
   form { display:grid; gap:10px; margin-bottom:20px; }
   label { font-weight:bold; }
@@ -18,9 +18,11 @@
   table { width:100%; border-collapse:collapse; margin-top:10px; }
   th, td { border:1px solid #ccc; padding:8px; text-align:center; }
   th { background:#40739e; color:white; }
-  #filtros { display:flex; gap:10px; margin-top:20px; align-items:center; flex-wrap:wrap; }
-  #btnLimparFiltros { background:#999; }
-  #btnLimparFiltros:hover { background:#777; }
+  nav { display:flex; justify-content:center; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+  .menu-btn { background:#999; }
+  .menu-btn.active { background:#2f5d83; color:white; }
+  section { display:none; }
+  section.active { display:block; }
 </style>
 </head>
 <body>
@@ -28,14 +30,14 @@
   <h2>Controle de Toners</h2>
 
   <!-- MENU -->
-  <nav style="display:flex; justify-content:center; gap:15px; margin-bottom:20px;">
-    <button class="menu-btn" data-section="secControle">Controle de Trocas</button>
+  <nav>
+    <button class="menu-btn active" data-section="secControle">Controle de Trocas</button>
     <button class="menu-btn" data-section="secCadastro">Cadastro de Toners</button>
     <button class="menu-btn" data-section="secConsulta">Consulta de Toners</button>
   </nav>
 
   <!-- SEÇÃO 1: CONTROLE DE TROCAS -->
-  <section id="secControle" class="secao">
+  <section id="secControle" class="active">
     <form id="formRegistro">
       <label>Nome da Escola:</label>
       <input list="listaEscolas" id="escola" required>
@@ -78,7 +80,7 @@
   </section>
 
   <!-- SEÇÃO 2: CADASTRO DE TONERS -->
-  <section id="secCadastro" class="secao" style="display:none;">
+  <section id="secCadastro">
     <h3>Cadastro de Modelos de Toner</h3>
     <form id="formCadastroToner">
       <label>Modelo:</label>
@@ -107,7 +109,7 @@
   </section>
 
   <!-- SEÇÃO 3: CONSULTA DE TONERS -->
-  <section id="secConsulta" class="secao" style="display:none;">
+  <section id="secConsulta">
     <h3>Consulta de Toners Cadastrados</h3>
     <input type="text" id="filtroModeloConsulta" placeholder="Filtrar por modelo...">
     <table>
@@ -123,9 +125,10 @@
   </section>
 </div>
 
+<!-- SCRIPT FIREBASE -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBSAMAhiEbBPCNqNpv-dM64Pa_xclwqc54",
@@ -139,104 +142,70 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ===== MENU =====
+  // ===== MENU FUNCIONAL =====
   const botoesMenu = document.querySelectorAll('.menu-btn');
-  const secoes = document.querySelectorAll('.secao');
-  botoesMenu.forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      secoes.forEach(s=>s.style.display='none');
-      document.getElementById(btn.dataset.section).style.display='block';
-      botoesMenu.forEach(b=>b.style.background='');
-      btn.style.background='#2f5d83';
-      btn.style.color='white';
+  const secoes = document.querySelectorAll('section');
+
+  botoesMenu.forEach(botao => {
+    botao.addEventListener('click', () => {
+      // Remove ativo de todos
+      botoesMenu.forEach(b => b.classList.remove('active'));
+      secoes.forEach(s => s.classList.remove('active'));
+
+      // Ativa o clicado
+      botao.classList.add('active');
+      document.getElementById(botao.dataset.section).classList.add('active');
     });
   });
 
-  // ===== CONTROLE DE TROCAS (SEÇÃO 1) =====
+  // ===== SEÇÃO 1: CONTROLE DE TROCAS =====
   const formRegistro = document.getElementById('formRegistro');
   const tabelaRegistros = document.getElementById('tabelaRegistros');
-  const filtroEscola = document.getElementById('filtroEscola');
-  const filtroMes = document.getElementById('filtroMes');
-  const btnLimparFiltros = document.getElementById('btnLimparFiltros');
-  const btnExportarPDF = document.getElementById('btnExportarPDF');
-  const btnImprimirRelatorio = document.getElementById('btnImprimirRelatorio');
-  const btnSalvar = document.getElementById('btnSalvar');
-  const btnCancelarEdicao = document.getElementById('btnCancelarEdicao');
-  const escola = document.getElementById('escola');
-  const modelo = document.getElementById('modelo');
-  const quantidade = document.getElementById('quantidade');
-  const data = document.getElementById('data');
 
-  let registros = [];
-  let registrosDocs = [];
-  let idEmEdicao = null;
+  function escapeHtml(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
-  import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-
-  function escapeHtml(str){ return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-  // Listener da coleção de trocas
-  function iniciarListenerTrocas() {
+  function carregarRegistros(){
     const q = query(collection(db, 'registros'), orderBy('data','desc'));
     onSnapshot(q, snapshot=>{
-      registros=[]; registrosDocs=[];
+      tabelaRegistros.innerHTML='';
       snapshot.forEach(docSnap=>{
-        registros.push(docSnap.data());
-        registrosDocs.push({id:docSnap.id,data:docSnap.data()});
+        const r = docSnap.data();
+        const tr=document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(r.escola)}</td>
+          <td>${escapeHtml(r.modelo)}</td>
+          <td>${r.quantidade}</td>
+          <td>${r.data}</td>
+          <td></td>`;
+        tabelaRegistros.appendChild(tr);
       });
-      atualizarTabelaTrocas();
     });
   }
+  carregarRegistros();
 
-  function atualizarTabelaTrocas(){
-    tabelaRegistros.innerHTML='';
-    registros.forEach((r,i)=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`
-        <td>${escapeHtml(r.escola)}</td>
-        <td>${escapeHtml(r.modelo)}</td>
-        <td>${r.quantidade}</td>
-        <td>${r.data}</td>
-        <td>
-          <button data-i="${i}" class="editar">✏️</button>
-          <button data-i="${i}" class="excluir">🗑️</button>
-        </td>`;
-      tabelaRegistros.appendChild(tr);
-    });
-  }
-
-  iniciarListenerTrocas();
-
-  // ===== CADASTRO DE TONERS (SEÇÃO 2) =====
+  // ===== SEÇÃO 2: CADASTRO DE TONERS =====
   const formCadastroToner = document.getElementById('formCadastroToner');
   const tabelaToners = document.getElementById('tabelaToners');
   const tabelaConsulta = document.getElementById('tabelaConsulta');
-  const filtroModeloConsulta = document.getElementById('filtroModeloConsulta');
 
-  function iniciarListenerToners(){
+  function carregarToners(){
     const q = query(collection(db,'toners'), orderBy('modelo'));
     onSnapshot(q, snapshot=>{
       tabelaToners.innerHTML='';
       tabelaConsulta.innerHTML='';
       snapshot.forEach(docSnap=>{
-        const d = docSnap.data();
-        const id = docSnap.id;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${escapeHtml(d.modelo)}</td>
-          <td>${d.quantidade}</td>
-          <td>${escapeHtml(d.impressora)}</td>
-          <td><button data-id="${id}" class="delToner">🗑️</button></td>`;
+        const d=docSnap.data();
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td><td></td>`;
         tabelaToners.appendChild(tr);
 
-        const tr2 = document.createElement('tr');
-        tr2.innerHTML = `<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
+        const tr2=document.createElement('tr');
+        tr2.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
         tabelaConsulta.appendChild(tr2);
       });
     });
   }
-
-  iniciarListenerToners();
+  carregarToners();
 
   formCadastroToner.addEventListener('submit', async e=>{
     e.preventDefault();
@@ -245,11 +214,11 @@
       quantidade: parseInt(cadQuantidade.value),
       impressora: cadImpressora.value.trim()
     };
+    if(!novo.modelo || !novo.quantidade || !novo.impressora) return alert("Preencha todos os campos!");
     await addDoc(collection(db,'toners'),novo);
     formCadastroToner.reset();
+    alert('Toner cadastrado com sucesso!');
   });
 </script>
 </body>
-
 </html>
-
