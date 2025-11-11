@@ -1,9 +1,11 @@
-// ========== Firebase Import ==========
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+// script.js — módulo ES (coleções: impressoras-site1 e impressoras-toners)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  getFirestore, collection, addDoc, onSnapshot, query, orderBy,
+  doc, updateDoc, getDocs, where, deleteDoc
+} from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
+/* ====== firebaseConfig (use a sua configuração fornecida) ====== */
 const firebaseConfig = {
   apiKey: "AIzaSyBSAMAhiEbBPCNqNpv-dM64Pa_xclwqc54",
   authDomain: "controletoner.firebaseapp.com",
@@ -17,284 +19,355 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ========== Utils ==========
-const escapeHtml = (str) =>
-  String(str || '').replace(/[&<>"']/g, (m) => (
-    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]
-  ));
+/* ====== helpers ====== */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const escapeHtml = s => String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-const setToday = () => {
-  document.getElementById('data').value = new Date().toISOString().split("T")[0];
-};
-setToday();
+/* ====== DOM elements ====== */
+const tabelaRegistrosBody = $("#tabelaRegistros tbody");
+const tabelaTonersBody = $("#tabelaToners tbody");
+const tabelaConsultaBody = $("#tabelaConsulta tbody");
 
-// ========== Navegação ==========
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(s => s.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.target).classList.add('active');
-  });
-});
+const formRegistro = $("#formRegistro");
+const escolaInput = $("#escola");
+const modeloInput = $("#modelo");
+const quantidadeInput = $("#quantidade");
+const dataInput = $("#data");
+const tipoOperacao = $("#tipoOperacao");
+const btnSalvar = $("#btnSalvar");
+const btnCancelarEdicao = $("#btnCancelarEdicao");
 
-// =============================
-//         CONTROLE
-// =============================
-let registros = [];
-let idEmEdicao = null;
+const filtroEscola = $("#filtroEscola");
+const filtroMes = $("#filtroMes");
+const btnImprimirTodos = $("#btnImprimirTodos");
+const btnImprimirFiltrado = $("#btnImprimirFiltrado");
+const btnExportPDF = $("#btnExportPDF");
 
-const tabelaRegistros = document.querySelector("#tabelaRegistros tbody");
-const escola = document.getElementById("escola");
-const modelo = document.getElementById("modelo");
-const quantidade = document.getElementById("quantidade");
-const data = document.getElementById("data");
-const tipoOperacao = document.getElementById("tipoOperacao");
-const btnSalvar = document.getElementById("btnSalvar");
-const btnCancelarEdicao = document.getElementById("btnCancelarEdicao");
-const filtroEscola = document.getElementById("filtroEscola");
-const filtroMes = document.getElementById("filtroMes");
+const formCadastroToner = $("#formCadastroToner");
+const cadModelo = $("#cadModelo");
+const cadQuantidade = $("#cadQuantidade");
+const cadImpressora = $("#cadImpressora");
+const btnSalvarToner = $("#btnSalvarToner");
+const btnCancelarToner = $("#btnCancelarToner");
+const filtroModeloConsulta = $("#filtroModeloConsulta");
 
+const dlEscolas = $("#listaEscolas");
+const dlModelos = $("#listaModelos");
+
+/* ====== coleções ====== */
 const colecaoRegistros = collection(db, "impressoras-site1");
 const colecaoToners = collection(db, "impressoras-toners");
 
-function carregarTrocas() {
-  const q = query(colecaoRegistros, orderBy("data", "desc"));
+/* ====== estado local ====== */
+let registros = [];
+let toners = [];
+let idEdicaoRegistro = null;
+let idEdicaoToner = null;
 
+/* ====== util: setar data hoje ====== */
+function setToday() {
+  const hoje = new Date().toISOString().split("T")[0];
+  dataInput.value = hoje;
+}
+setToday();
+
+/* ====== navegação abas ====== */
+$$(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    $$(".tab-btn").forEach(b=>b.classList.remove("active"));
+    $$(".tab").forEach(s=>s.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.target).classList.add("active");
+  });
+});
+
+/* ====== popular datalists ====== */
+async function popularDatalists() {
+  try {
+    // escolas únicas a partir de registros
+    const snapR = await getDocs(query(colecaoRegistros, orderBy("escola")));
+    const setEscolas = new Set();
+    snapR.forEach(s => { const d = s.data(); if(d && d.escola) setEscolas.add(d.escola); });
+    dlEscolas.innerHTML = "";
+    Array.from(setEscolas).sort().forEach(nome => {
+      const opt = document.createElement("option"); opt.value = nome; dlEscolas.appendChild(opt);
+    });
+
+    // modelos a partir de toners
+    const snapT = await getDocs(query(colecaoToners, orderBy("modelo")));
+    const setModelos = new Set();
+    snapT.forEach(s => { const d = s.data(); if(d && d.modelo) setModelos.add(d.modelo); });
+    dlModelos.innerHTML = "";
+    Array.from(setModelos).sort().forEach(m => {
+      const opt = document.createElement("option"); opt.value = m; dlModelos.appendChild(opt);
+    });
+  } catch (e) {
+    console.warn("Erro popular datalists:", e);
+  }
+}
+
+/* ====== observar registros (onSnapshot) ====== */
+function observarRegistros() {
+  const q = query(colecaoRegistros, orderBy("data", "desc"));
   onSnapshot(q, snap => {
     registros = [];
-    tabelaRegistros.innerHTML = "";
-
+    tabelaRegistrosBody.innerHTML = "";
     snap.forEach(docSnap => {
-      const r = { id: docSnap.id, ...docSnap.data() };
-      registros.push(r);
-
+      const d = docSnap.data();
+      const id = docSnap.id;
+      registros.push({...d, id});
       const tr = document.createElement("tr");
+      tr.dataset.id = id;
       tr.innerHTML = `
-        <td>${escapeHtml(r.escola)}</td>
-        <td>${escapeHtml(r.modelo)}</td>
-        <td>${r.quantidade}</td>
-        <td>${r.data}</td>
-        <td>${escapeHtml(r.tipo)}</td>
+        <td>${escapeHtml(d.escola || "")}</td>
+        <td>${escapeHtml(d.modelo || "")}</td>
+        <td>${d.quantidade ?? ""}</td>
+        <td>${d.data ?? ""}</td>
+        <td>${escapeHtml(d.tipo || "")}</td>
         <td>
-          <button class="btn-editar" data-id="${r.id}">✏️</button>
-          <button class="btn-excluir" data-id="${r.id}">🗑️</button>
+          <button class="btn-editar" data-id="${id}">✏️</button>
+          <button class="btn-excluir" data-id="${id}">🗑️</button>
         </td>
       `;
-      tabelaRegistros.appendChild(tr);
+      tabelaRegistrosBody.appendChild(tr);
     });
-
-    aplicarEventos();
-    atualizarFiltros();
-  });
+    aplicarEventosRegistros();
+    aplicarFiltroTabela(); // reaplica filtro quando dados mudam
+    popularDatalists();
+  }, err => console.error("Erro snapshot registros:", err));
 }
-carregarTrocas();
+observarRegistros();
 
-function aplicarEventos() {
-  document.querySelectorAll('.btn-excluir').forEach(btn =>
-    btn.onclick = async () => {
-      if (confirm("Excluir registro?")) {
-        await deleteDoc(doc(db, "impressoras-site1", btn.dataset.id));
-      }
-    }
-  );
-
-  document.querySelectorAll('.btn-editar').forEach(btn =>
-    btn.onclick = () => {
-      const item = registros.find(r => r.id === btn.dataset.id);
-      if (!item) return;
-      idEmEdicao = item.id;
-
-      escola.value = item.escola;
-      modelo.value = item.modelo;
-      quantidade.value = item.quantidade;
-      data.value = item.data;
-      tipoOperacao.value = item.tipo;
-
-      btnSalvar.textContent = "Salvar Alterações";
-      btnCancelarEdicao.style.display = "inline-block";
-    }
-  );
-}
-
-btnCancelarEdicao.onclick = () => {
-  idEmEdicao = null;
-  formRegistro.reset();
-  setToday();
-  btnSalvar.textContent = "Registrar";
-  btnCancelarEdicao.style.display = "none";
-};
-
-document.getElementById("formRegistro").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const registro = {
-    escola: escola.value.trim(),
-    modelo: modelo.value.trim(),
-    quantidade: Number(quantidade.value),
-    data: data.value,
-    tipo: tipoOperacao.value
-  };
-
-  if (idEmEdicao) {
-    await updateDoc(doc(db, "impressoras-site1", idEmEdicao), registro);
-    idEmEdicao = null;
-    btnSalvar.textContent = "Registrar";
-    btnCancelarEdicao.style.display = "none";
-    alert("Registro atualizado!");
-  } else {
-    if (registro.tipo === "Troca") {
-      const q = query(colecaoToners, where("modelo", "==", registro.modelo));
-      const snap = await getDocs(q);
-
-      if (snap.empty) return alert("Modelo não encontrado no estoque!");
-
-      const tonerDoc = snap.docs[0];
-      const estData = tonerDoc.data();
-      const novaQtd = estData.quantidade - registro.quantidade;
-
-      if (novaQtd < 0) return alert("Estoque insuficiente!");
-
-      await updateDoc(doc(db, "impressoras-toners", tonerDoc.id), { quantidade: novaQtd });
-    }
-
-    await addDoc(colecaoRegistros, registro);
-    alert("Registrado!");
-  }
-
-  formRegistro.reset();
-  setToday();
-});
-
-// ========== FILTRO EM TEMPO REAL ==========
-function atualizarFiltros() {
-  const escolaFiltro = filtroEscola.value.toLowerCase();
-  const mesFiltro = filtroMes.value;
-
-  Array.from(tabelaRegistros.children).forEach(tr => {
-    const escolaTxt = tr.children[0].innerText.toLowerCase();
-    const dataTxt = tr.children[3].innerText;
-    tr.style.display =
-      (escolaTxt.includes(escolaFiltro) && (!mesFiltro || dataTxt.startsWith(mesFiltro)))
-        ? ""
-        : "none";
-  });
-}
-filtroEscola.oninput = atualizarFiltros;
-filtroMes.onchange = atualizarFiltros;
-
-// =============================
-//      ESTOQUE (TONERS)
-// =============================
-let idTonerEdicao = null;
-
-const tabelaToners = document.querySelector("#tabelaToners tbody");
-const tabelaConsulta = document.querySelector("#tabelaConsulta tbody");
-
-function carregarToners() {
+/* ====== observar toners ====== */
+function observarToners() {
   const q = query(colecaoToners, orderBy("modelo"));
-
   onSnapshot(q, snap => {
-    tabelaToners.innerHTML = "";
-    tabelaConsulta.innerHTML = "";
-    listaModelos.innerHTML = "";
-
+    toners = [];
+    tabelaTonersBody.innerHTML = "";
+    tabelaConsultaBody.innerHTML = "";
+    dlModelos.innerHTML = "";
     snap.forEach(docSnap => {
-      const d = { id: docSnap.id, ...docSnap.data() };
-
+      const d = docSnap.data(); const id = docSnap.id;
+      toners.push({...d, id});
       const tr = document.createElement("tr");
+      tr.dataset.id = id;
       tr.innerHTML = `
-        <td>${escapeHtml(d.modelo)}</td>
-        <td>${d.quantidade}</td>
-        <td>${escapeHtml(d.impressora)}</td>
+        <td>${escapeHtml(d.modelo || "")}</td>
+        <td>${d.quantidade ?? 0}</td>
+        <td>${escapeHtml(d.impressora || "")}</td>
         <td>
-          <button class="btn-editar-estoque" data-id="${d.id}">✏️</button>
-          <button class="btn-excluir-estoque" data-id="${d.id}">🗑️</button>
-        </td>`;
-      tabelaToners.appendChild(tr);
+          <button class="btn-editar-toner" data-id="${id}">✏️</button>
+          <button class="btn-excluir-toner" data-id="${id}">🗑️</button>
+        </td>
+      `;
+      tabelaTonersBody.appendChild(tr);
 
       const tr2 = document.createElement("tr");
-      tr2.innerHTML = `<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
-      tabelaConsulta.appendChild(tr2);
+      tr2.innerHTML = `<td>${escapeHtml(d.modelo || "")}</td><td>${d.quantidade ?? 0}</td><td>${escapeHtml(d.impressora || "")}</td>`;
+      tabelaConsultaBody.appendChild(tr2);
 
-      listaModelos.innerHTML += `<option value="${escapeHtml(d.modelo)}"></option>`;
+      const opt = document.createElement("option"); opt.value = d.modelo || ""; dlModelos.appendChild(opt);
     });
+    aplicarEventosToners();
+    popularDatalists();
+  }, err => console.error("Erro snapshot toners:", err));
+}
+observarToners();
 
-    aplicarEventosToner();
+/* ====== eventos registros (editar/excluir) ====== */
+function aplicarEventosRegistros() {
+  $$(".btn-excluir").forEach(btn=>{
+    btn.onclick = async ()=> {
+      if(!confirm("Deseja excluir este registro?")) return;
+      try { await deleteDoc(doc(db, "impressoras-site1", btn.dataset.id)); }
+      catch(e){ console.error("Erro excluir registro:", e); alert("Erro ao excluir"); }
+    };
+  });
+
+  $$(".btn-editar").forEach(btn=>{
+    btn.onclick = ()=> {
+      const id = btn.dataset.id;
+      const item = registros.find(r=> r.id === id);
+      if(!item) return;
+      idEdicaoRegistro = id;
+      escolaInput.value = item.escola || "";
+      modeloInput.value = item.modelo || "";
+      quantidadeInput.value = item.quantidade ?? 1;
+      dataInput.value = item.data || new Date().toISOString().split("T")[0];
+      tipoOperacao.value = item.tipo || "";
+      btnSalvar.textContent = "Salvar Alterações";
+      btnCancelarEdicao.style.display = "inline-block";
+      window.scrollTo({top:0, behavior:'smooth'});
+    };
   });
 }
-carregarToners();
 
-function aplicarEventosToner() {
-  document.querySelectorAll('.btn-excluir-estoque').forEach(btn =>
-    btn.onclick = async () => {
-      if (confirm("Remover toner?"))
-        await deleteDoc(doc(db, "impressoras-toners", btn.dataset.id));
-    }
-  );
-
-  document.querySelectorAll('.btn-editar-estoque').forEach(btn =>
-    btn.onclick = () => {
-      const toner = [...tabelaToners.children]
-        .map(r => r.children)
-        .map(c => ({
-          modelo: c[0].innerText,
-          quantidade: Number(c[1].innerText),
-          impressora: c[2].innerText,
-        }))[btn.closest("tr").rowIndex];
-
-      idTonerEdicao = btn.dataset.id;
-      cadModelo.value = toner.modelo;
-      cadQuantidade.value = toner.quantidade;
-      cadImpressora.value = toner.impressora;
-
-      btnSalvarToner.textContent = "Salvar alteração";
-      btnCancelarToner.style.display = "inline-block";
-    }
-  );
-}
-
-const formCadastroToner = document.getElementById("formCadastroToner");
-const btnSalvarToner = document.getElementById("btnSalvarToner");
-const btnCancelarToner = document.getElementById("btnCancelarToner");
-
-btnCancelarToner.onclick = () => {
-  idTonerEdicao = null;
-  formCadastroToner.reset();
-  btnSalvarToner.textContent = "Cadastrar";
-  btnCancelarToner.style.display = "none";
-};
-
-formCadastroToner.addEventListener("submit", async e => {
+/* ====== submit registro ====== */
+/* Regra A: Troca → desconta do estoque; Recarga → não altera estoque */
+formRegistro.addEventListener("submit", async (e)=>{
   e.preventDefault();
-
   const novo = {
-    modelo: cadModelo.value.trim(),
-    quantidade: Number(cadQuantidade.value),
-    impressora: cadImpressora.value.trim()
+    escola: escolaInput.value.trim(),
+    modelo: modeloInput.value.trim(),
+    quantidade: Number(quantidadeInput.value),
+    data: dataInput.value,
+    tipo: tipoOperacao.value
   };
-
-  if (novo.quantidade < 0) return alert("Quantidade inválida!");
-
-  if (idTonerEdicao) {
-    await updateDoc(doc(db, "impressoras-toners", idTonerEdicao), novo);
-    alert("Atualizado!");
-    idTonerEdicao = null;
-  } else {
-    await addDoc(colecaoToners, novo);
-    alert("Cadastrado!");
+  if(!novo.escola || !novo.modelo || !novo.data || !novo.tipo || isNaN(novo.quantidade) || novo.quantidade <= 0){
+    return alert("Preencha todos os campos corretamente.");
   }
 
+  try {
+    if(idEdicaoRegistro) {
+      await updateDoc(doc(db, "impressoras-site1", idEdicaoRegistro), novo);
+      alert("Registro atualizado!");
+      idEdicaoRegistro = null;
+      formRegistro.reset();
+      setToday();
+      btnSalvar.textContent = "Registrar";
+      btnCancelarEdicao.style.display = "none";
+      return;
+    }
+
+    if(novo.tipo === "Recarga") {
+      await addDoc(colecaoRegistros, novo);
+      alert("Recarga registrada!");
+      formRegistro.reset();
+      setToday();
+      return;
+    }
+
+    // Troca: buscar toner no estoque
+    const q = query(colecaoToners, where("modelo", "==", novo.modelo));
+    const qsnap = await getDocs(q);
+    if(qsnap.empty) { return alert("Modelo não encontrado no estoque!"); }
+    const tonerDoc = qsnap.docs[0];
+    const tonerData = tonerDoc.data();
+    const atual = Number(tonerData.quantidade || 0);
+    const novaQtd = atual - novo.quantidade;
+    if(novaQtd < 0) return alert("Estoque insuficiente!");
+    // atualizar estoque então salvar registro
+    await updateDoc(doc(db, "impressoras-toners", tonerDoc.id), { quantidade: novaQtd });
+    await addDoc(colecaoRegistros, novo);
+    alert("Troca registrada e estoque atualizado!");
+    formRegistro.reset();
+    setToday();
+  } catch (err) {
+    console.error("Erro salvar registro:", err);
+    alert("Erro ao salvar (veja console).");
+  }
+});
+
+/* ====== filtros em tempo real ====== */
+function aplicarFiltroTabela() {
+  const termo = (filtroEscola.value || "").toLowerCase();
+  const mes = filtroMes.value; // YYYY-MM
+  $$("#tabelaRegistros tbody tr").forEach(tr=>{
+    const txt = tr.innerText.toLowerCase();
+    const dataTxt = tr.children[3] ? tr.children[3].innerText : "";
+    const condEscola = termo === "" || txt.includes(termo);
+    const condMes = mes === "" || dataTxt.startsWith(mes);
+    tr.style.display = (condEscola && condMes) ? "" : "none";
+  });
+}
+filtroEscola.addEventListener("input", aplicarFiltroTabela);
+filtroMes.addEventListener("change", aplicarFiltroTabela);
+
+/* ====== impressão / PDF ====== */
+function gerarHtmlRelatorio(lista) {
+  let html = `<html><head><meta charset="utf-8"><title>Relatório</title>
+    <style>body{font-family:Arial;padding:18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#eee}</style>
+    </head><body>`;
+  html += `<h2>Relatório de Trocas e Recargas</h2><p>Emitido: ${new Date().toLocaleString()}</p>`;
+  html += `<table><tr><th>Escola</th><th>Modelo</th><th>Quantidade</th><th>Data</th><th>Tipo</th></tr>`;
+  lista.forEach(r=> html += `<tr><td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td><td>${escapeHtml(r.tipo)}</td></tr>`);
+  html += `</table></body></html>`;
+  return html;
+}
+btnImprimirTodos.addEventListener("click", ()=> {
+  if(registros.length === 0) return alert("Sem registros.");
+  const w = window.open(); w.document.write(gerarHtmlRelatorio(registros)); w.document.close(); w.print();
+});
+btnImprimirFiltrado.addEventListener("click", ()=> {
+  const termo = (filtroEscola.value||"").toLowerCase();
+  const mes = filtroMes.value;
+  const filtrados = registros.filter(r => (termo === "" || r.escola.toLowerCase().includes(termo)) && (mes === "" || r.data.startsWith(mes)));
+  if(filtrados.length === 0) return alert("Nenhum registro encontrado.");
+  const w = window.open(); w.document.write(gerarHtmlRelatorio(filtrados)); w.document.close(); w.print();
+});
+btnExportPDF.addEventListener("click", ()=> {
+  const termo = (filtroEscola.value||"").toLowerCase();
+  const mes = filtroMes.value;
+  const filtrados = registros.filter(r => (termo === "" || r.escola.toLowerCase().includes(termo)) && (mes === "" || r.data.startsWith(mes)));
+  if(filtrados.length === 0) return alert("Nenhum registro para exportar.");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  doc.text("Relatório de Trocas e Recargas", 14, 14);
+  doc.autoTable({ head:[['Escola','Modelo','Quantidade','Data','Tipo']], body: filtrados.map(r=>[r.escola, r.modelo, String(r.quantidade), r.data, r.tipo]), startY: 20 });
+  doc.save('relatorio_trocas.pdf');
+});
+
+/* ====== toners: eventos editar/excluir e submit ====== */
+function aplicarEventosToners(){
+  $$(".btn-excluir-toner").forEach(btn=>{
+    btn.onclick = async ()=> {
+      if(!confirm("Excluir toner?")) return;
+      try { await deleteDoc(doc(db, "impressoras-toners", btn.dataset.id)); }
+      catch(e){ console.error("Erro excluir toner:", e); alert("Erro ao excluir toner"); }
+    };
+  });
+  $$(".btn-editar-toner").forEach(btn=>{
+    btn.onclick = async ()=> {
+      const id = btn.dataset.id;
+      const t = toners.find(x=> x.id === id);
+      if(!t) return;
+      idEdicaoToner = id;
+      cadModelo.value = t.modelo || "";
+      cadQuantidade.value = t.quantidade ?? 0;
+      cadImpressora.value = t.impressora || "";
+      btnSalvarToner.textContent = "Salvar Alterações";
+      btnCancelarToner.style.display = "inline-block";
+      window.scrollTo({top:0, behavior:'smooth'});
+    };
+  });
+}
+formCadastroToner.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const novo = { modelo: cadModelo.value.trim(), quantidade: Number(cadQuantidade.value), impressora: cadImpressora.value.trim() };
+  if(!novo.modelo || isNaN(novo.quantidade) || novo.quantidade < 0 || !novo.impressora) return alert("Preencha os campos corretamente.");
+  try {
+    if(idEdicaoToner) {
+      await updateDoc(doc(db, "impressoras-toners", idEdicaoToner), novo);
+      alert("Toner atualizado!");
+      idEdicaoToner = null;
+      formCadastroToner.reset();
+      btnSalvarToner.textContent = "Cadastrar";
+      btnCancelarToner.style.display = "none";
+      return;
+    }
+    await addDoc(colecaoToners, novo);
+    alert("Toner cadastrado!");
+    formCadastroToner.reset();
+  } catch (err) {
+    console.error("Erro salvar toner:", err);
+    alert("Erro ao salvar toner.");
+  }
+});
+btnCancelarToner.addEventListener("click", ()=>{
+  idEdicaoToner = null;
   formCadastroToner.reset();
   btnSalvarToner.textContent = "Cadastrar";
   btnCancelarToner.style.display = "none";
 });
 
-// 🔍 FILTRO CONSULTA
-document.getElementById("filtroModeloConsulta").oninput = (e) => {
-  const filtro = e.target.value.toLowerCase();
-  Array.from(tabelaConsulta.children).forEach(tr => {
-    const modelo = tr.children[0].innerText.toLowerCase();
-    tr.style.display = modelo.includes(filtro) ? "" : "none";
+/* ====== filtro consulta modelos ====== */
+filtroModeloConsulta.addEventListener("input", (e)=>{
+  const termo = (e.target.value||"").toLowerCase();
+  $$("#tabelaConsulta tbody tr").forEach(tr=>{
+    tr.style.display = tr.innerText.toLowerCase().includes(termo) ? "" : "none";
   });
-};
+});
+
+/* ====== iniciar uma vez datalists ====== */
+popularDatalists();
