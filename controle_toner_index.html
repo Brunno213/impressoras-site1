@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Controle de Toner — Versão Melhorada</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- jsPDF + AutoTable (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Controle de Toner — Parque Tecnológico</h1>
+      <p class="sub">Versão melhorada — filtros em tempo real, editar/excluir, relatórios em PDF</p>
+    </header>
+
+    <nav class="nav">
+      <button class="tab-btn active" data-target="secControle">Controle de Trocas</button>
+      <button class="tab-btn" data-target="secCadastro">Cadastro de Toners</button>
+      <button class="tab-btn" data-target="secConsulta">Consulta de Toners</button>
+    </nav>
+
+    <main>
+      <!-- CONTROLE DE TROCAS -->
+      <section id="secControle" class="tab active">
+        <form id="formRegistro" class="card">
+          <div class="row">
+            <label>Escola</label>
+            <input list="listaEscolas" id="escola" required placeholder="Escolha ou digite uma escola">
+            <datalist id="listaEscolas"></datalist>
+          </div>
+
+          <div class="row">
+            <label>Modelo</label>
+            <input list="listaModelos" id="modelo" required placeholder="Escolha ou digite um modelo">
+            <datalist id="listaModelos"></datalist>
+          </div>
+
+          <div class="row">
+            <label>Quantidade</label>
+            <input type="number" id="quantidade" min="1" value="1" required>
+          </div>
+
+          <div class="row">
+            <label>Data</label>
+            <input type="date" id="data" required>
+          </div>
+
+          <div class="row">
+            <label>Tipo</label>
+            <select id="tipoOperacao" required>
+              <option value="">Selecione...</option>
+              <option value="Troca">Troca</option>
+              <option value="Recarga">Recarga</option>
+            </select>
+          </div>
+
+          <div class="actions">
+            <button type="submit" id="btnSalvar">Registrar</button>
+            <button type="button" id="btnCancelarEdicao" class="btn-muted" style="display:none">Cancelar</button>
+          </div>
+        </form>
+
+        <div class="filters card">
+          <input type="text" id="filtroEscola" placeholder="Filtrar por escola (tempo real)">
+          <input type="month" id="filtroMes" title="Filtrar por mês (AAAA-MM)">
+          <div class="filter-actions">
+            <button id="btnImprimirTodos">📄 Imprimir Todos</button>
+            <button id="btnImprimirFiltrado">📄 Imprimir Filtrado</button>
+            <button id="btnExportPDF">⬇️ Baixar PDF</button>
+          </div>
+        </div>
+
+        <div class="table-wrap card">
+          <table id="tabelaRegistros" class="table">
+            <thead>
+              <tr>
+                <th>Escola</th>
+                <th>Modelo</th>
+                <th>Quantidade</th>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CADASTRO DE TONERS -->
+      <section id="secCadastro" class="tab">
+        <div class="card">
+          <h3>Cadastro de Modelos</h3>
+          <form id="formCadastroToner">
+            <div class="row">
+              <label>Modelo</label>
+              <input type="text" id="cadModelo" required>
+            </div>
+            <div class="row">
+              <label>Quantidade</label>
+              <input type="number" id="cadQuantidade" min="0" required>
+            </div>
+            <div class="row">
+              <label>Impressora</label>
+              <input type="text" id="cadImpressora" required>
+            </div>
+            <div class="actions">
+              <button type="submit" id="btnSalvarToner">Cadastrar</button>
+              <button type="button" id="btnCancelarToner" class="btn-muted" style="display:none">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <table id="tabelaToners" class="table">
+            <thead>
+              <tr><th>Modelo</th><th>Quantidade</th><th>Impressora</th><th>Ações</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CONSULTA -->
+      <section id="secConsulta" class="tab">
+        <div class="card">
+          <h3>Consulta de Toners</h3>
+          <div class="row">
+            <input type="text" id="filtroModeloConsulta" placeholder="Filtrar por modelo (tempo real)">
+          </div>
+          <table id="tabelaConsulta" class="table">
+            <thead>
+              <tr><th>Modelo</th><th>Quantidade</th><th>Impressora</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="muted">Feito com ❤️ — Versão melhorada gerada automaticamente</footer>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
