@@ -187,20 +187,16 @@
   const btnImprimirFiltrado = document.getElementById('btnImprimirFiltrado');
 
   let registros = [];
-  let registrosDocs = [];
   let idEmEdicao = null;
 
   function carregarTrocas(){
     const q = query(collection(db,'registros'), orderBy('data','desc'));
     onSnapshot(q, snap=>{
       registros = [];
-      registrosDocs = [];
       tabelaRegistros.innerHTML='';
       snap.forEach(docSnap=>{
         const r=docSnap.data();
         registros.push({...r, id: docSnap.id});
-        registrosDocs.push({id:docSnap.id, data:r});
-
         const tr=document.createElement('tr');
         tr.innerHTML=`
           <td>${escapeHtml(r.escola)}</td>
@@ -215,6 +211,8 @@
         tabelaRegistros.appendChild(tr);
       });
       aplicarEventos();
+      atualizarListas();
+      aplicarFiltros();
     });
   }
   carregarTrocas();
@@ -291,14 +289,29 @@
     formRegistro.reset();
   });
 
+  // ===== FILTROS DINÂMICOS =====
+  filtroEscola.addEventListener('input', aplicarFiltros);
+  filtroMes.addEventListener('input', aplicarFiltros);
+
+  function aplicarFiltros(){
+    const escolaFiltro = filtroEscola.value.toLowerCase();
+    const mesFiltro = filtroMes.value;
+    const linhas = tabelaRegistros.querySelectorAll('tr');
+    linhas.forEach(linha=>{
+      const escola = linha.children[0].textContent.toLowerCase();
+      const data = linha.children[3].textContent;
+      const coincideEscola = escola.includes(escolaFiltro);
+      const coincideMes = !mesFiltro || data.startsWith(mesFiltro);
+      linha.style.display = (coincideEscola && coincideMes)?'':'none';
+    });
+  }
+
   // ======== RELATÓRIO IMPRESSO ==========
   function gerarRelatorio(filtroEscolaVal='', filtroMesVal=''){
     let filtrados = registros;
     if(filtroEscolaVal) filtrados = filtrados.filter(r=>r.escola.toLowerCase().includes(filtroEscolaVal.toLowerCase()));
     if(filtroMesVal) filtrados = filtrados.filter(r=>r.data.startsWith(filtroMesVal));
-
     if(filtrados.length===0){ alert('Nenhum registro encontrado.'); return; }
-
     let html = `<h2 style="text-align:center;">Relatório de Trocas e Recargas</h2>`;
     html += `<p><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString()}</p>`;
     if(filtroMesVal){
@@ -307,11 +320,8 @@
       html += `<p><strong>Mês:</strong> ${meses[parseInt(mes)-1]} de ${ano}</p>`;
     }
     if(filtroEscolaVal) html += `<p><strong>Escola:</strong> ${escapeHtml(filtroEscolaVal)}</p>`;
-
     html += `<table border="1" cellspacing="0" cellpadding="6" style="width:100%; border-collapse:collapse;">
-    <tr style="background:#eee;">
-      <th>Escola</th><th>Modelo</th><th>Quantidade</th><th>Data</th><th>Tipo</th>
-    </tr>`;
+    <tr style="background:#eee;"><th>Escola</th><th>Modelo</th><th>Quantidade</th><th>Data</th><th>Tipo</th></tr>`;
     filtrados.forEach(r=>{
       html += `<tr><td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td><td>${escapeHtml(r.tipo)}</td></tr>`;
     });
@@ -323,9 +333,7 @@
   }
 
   btnImprimirTodos.onclick = ()=>gerarRelatorio();
-  btnImprimirFiltrado.onclick = ()=>{
-    gerarRelatorio(filtroEscola.value, filtroMes.value);
-  };
+  btnImprimirFiltrado.onclick = ()=>gerarRelatorio(filtroEscola.value, filtroMes.value);
 
   // ======== CADASTRO DE TONERS ==========
   const formCadastroToner=document.getElementById('formCadastroToner');
@@ -356,10 +364,9 @@
         tr2.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
         tabelaConsulta.appendChild(tr2);
       });
+      aplicarFiltroConsulta();
       document.querySelectorAll('#tabelaToners .btn-excluir').forEach(btn=>{
-        btn.onclick = async ()=>{
-          if(confirm("Excluir este toner?")) await deleteDoc(doc(db,'toners',btn.dataset.id));
-        };
+        btn.onclick = async ()=>{ if(confirm("Excluir este toner?")) await deleteDoc(doc(db,'toners',btn.dataset.id)); };
       });
       document.querySelectorAll('#tabelaToners .btn-editar').forEach(btn=>{
         btn.onclick = async ()=>{
@@ -379,6 +386,18 @@
   }
   carregarToners();
 
+  // ======== FILTRO DE CONSULTA DE TONERS ========
+  const filtroModeloConsulta = document.getElementById('filtroModeloConsulta');
+  filtroModeloConsulta.addEventListener('input', aplicarFiltroConsulta);
+  function aplicarFiltroConsulta(){
+    const termo = filtroModeloConsulta.value.toLowerCase();
+    const linhas = tabelaConsulta.querySelectorAll('tr');
+    linhas.forEach(linha=>{
+      const modelo = linha.children[0].textContent.toLowerCase();
+      linha.style.display = modelo.includes(termo)?'':'none';
+    });
+  }
+
   btnCancelarToner.onclick = ()=>{
     idTonerEdicao=null;
     formCadastroToner.reset();
@@ -394,7 +413,6 @@
       impressora: cadImpressora.value.trim()
     };
     if(!novo.modelo || !novo.quantidade || !novo.impressora){ alert("Preencha todos os campos!"); return; }
-
     if(idTonerEdicao){
       await updateDoc(doc(db,'toners',idTonerEdicao), novo);
       idTonerEdicao=null;
@@ -408,6 +426,16 @@
       alert('Toner cadastrado!');
     }
   });
+
+  // ======== ATUALIZA LISTAS DE ESCOLAS E MODELOS ========
+  function atualizarListas(){
+    const escolas = [...new Set(registros.map(r => r.escola))];
+    const modelos = [...new Set(registros.map(r => r.modelo))];
+    const listaEscolas = document.getElementById('listaEscolas');
+    const listaModelos = document.getElementById('listaModelos');
+    listaEscolas.innerHTML = escolas.map(e => `<option value="${escapeHtml(e)}">`).join('');
+    listaModelos.innerHTML = modelos.map(m => `<option value="${escapeHtml(m)}">`).join('');
+  }
 </script>
 </body>
 </html>
