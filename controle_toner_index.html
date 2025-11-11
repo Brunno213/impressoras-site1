@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Controle de Toner — Versão Melhorada</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Controle de Toner — Parque Tecnológico</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- jsPDF + AutoTable (CDN) -->
+  <!-- jsPDF (opcional para exportar PDF) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -13,7 +13,7 @@
   <div class="container">
     <header>
       <h1>Controle de Toner — Parque Tecnológico</h1>
-      <p class="sub">Versão melhorada — filtros em tempo real, editar/excluir, relatórios em PDF</p>
+      <p class="sub">Filtros em tempo real • Editar • Excluir • Relatórios</p>
     </header>
 
     <nav class="nav">
@@ -23,18 +23,18 @@
     </nav>
 
     <main>
-      <!-- CONTROLE DE TROCAS -->
+      <!-- CONTROLE -->
       <section id="secControle" class="tab active">
         <form id="formRegistro" class="card">
           <div class="row">
             <label>Escola</label>
-            <input list="listaEscolas" id="escola" required placeholder="Escolha ou digite uma escola">
+            <input list="listaEscolas" id="escola" placeholder="Escolha ou digite..." required>
             <datalist id="listaEscolas"></datalist>
           </div>
 
           <div class="row">
             <label>Modelo</label>
-            <input list="listaModelos" id="modelo" required placeholder="Escolha ou digite um modelo">
+            <input list="listaModelos" id="modelo" placeholder="Escolha ou digite..." required>
             <datalist id="listaModelos"></datalist>
           </div>
 
@@ -77,12 +77,7 @@
           <table id="tabelaRegistros" class="table">
             <thead>
               <tr>
-                <th>Escola</th>
-                <th>Modelo</th>
-                <th>Quantidade</th>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Ações</th>
+                <th>Escola</th><th>Modelo</th><th>Quantidade</th><th>Data</th><th>Tipo</th><th>Ações</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -90,7 +85,7 @@
         </div>
       </section>
 
-      <!-- CADASTRO DE TONERS -->
+      <!-- CADASTRO TONERS -->
       <section id="secCadastro" class="tab">
         <div class="card">
           <h3>Cadastro de Modelos</h3>
@@ -101,7 +96,7 @@
             </div>
             <div class="row">
               <label>Quantidade</label>
-              <input type="number" id="cadQuantidade" min="0" required>
+              <input type="number" id="cadQuantidade" min="0" value="0" required>
             </div>
             <div class="row">
               <label>Impressora</label>
@@ -116,9 +111,7 @@
 
         <div class="card">
           <table id="tabelaToners" class="table">
-            <thead>
-              <tr><th>Modelo</th><th>Quantidade</th><th>Impressora</th><th>Ações</th></tr>
-            </thead>
+            <thead><tr><th>Modelo</th><th>Quantidade</th><th>Impressora</th><th>Ações</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -132,18 +125,17 @@
             <input type="text" id="filtroModeloConsulta" placeholder="Filtrar por modelo (tempo real)">
           </div>
           <table id="tabelaConsulta" class="table">
-            <thead>
-              <tr><th>Modelo</th><th>Quantidade</th><th>Impressora</th></tr>
-            </thead>
+            <thead><tr><th>Modelo</th><th>Quantidade</th><th>Impressora</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
       </section>
     </main>
 
-    <footer class="muted">Feito com ❤️ — Versão melhorada gerada automaticamente</footer>
+    <footer class="muted">Feito com ❤️ — Controle de Toner</footer>
   </div>
 
+  <!-- script.js (módulo) -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
