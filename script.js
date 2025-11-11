@@ -1,19 +1,19 @@
 // ========== Firebase Import ==========
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, query, orderBy,
-  doc, updateDoc, getDocs, where, deleteDoc
-} from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+  getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ========== Firebase Config ==========
 const firebaseConfig = {
   apiKey: "AIzaSyBSAMAhiEbBPCNqNpv-dM64Pa_xclwqc54",
   authDomain: "controletoner.firebaseapp.com",
   projectId: "controletoner",
   storageBucket: "controletoner.firebasestorage.app",
   messagingSenderId: "821741941730",
-  appId: "1:821741941730:web:32bd9d82c58deef8a37fbb"
+  appId: "1:821741941730:web:32bd9d82c58deef8a37fbb",
+  measurementId: "G-HVQ1MN2HBD"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
