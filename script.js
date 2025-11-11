@@ -73,14 +73,30 @@ function setToday() {
 setToday();
 
 /* ====== navegação abas ====== */
-$$(".tab-btn").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    $$(".tab-btn").forEach(b=>b.classList.remove("active"));
-    $$(".tab").forEach(s=>s.classList.remove("active"));
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(b =>
+      b.classList.remove("active")
+    );
+    document.querySelectorAll(".tab").forEach(sec =>
+      sec.classList.remove("active")
+    );
+
     btn.classList.add("active");
-    document.getElementById(btn.dataset.target).classList.add("active");
-  });
+
+    const alvo = btn.getAttribute("data-target");
+    const sec = document.getElementById(alvo);
+
+    if (!sec) {
+      console.error("Seção não encontrada:", alvo);
+      alert("Erro: seção não encontrada!");
+      return;
+    }
+
+    sec.classList.add("active");
+  };
 });
+
 
 /* ====== popular datalists ====== */
 async function popularDatalists() {
