@@ -6,6 +6,7 @@
 <title>Controle de Toner e Tinta</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
 <style>
   body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:20px; }
   .container { max-width:1000px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 0 8px rgba(0,0,0,0.1); }
@@ -29,6 +30,7 @@
   #filtrosRelatorio { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:15px; margin-bottom:15px; }
 </style>
 </head>
+
 <body>
 <div class="container">
   <h2>Controle de Toners</h2>
@@ -40,7 +42,9 @@
     <button class="menu-btn" data-section="secConsulta">Consulta de Toners</button>
   </nav>
 
-  <!-- SEÇÃO 1: CONTROLE DE TROCAS -->
+  <!-- =========================== -->
+  <!--     CONTROLE DE TROCAS      -->
+  <!-- =========================== -->
   <section id="secControle" class="active">
     <form id="formRegistro">
       <label>Nome da Escola:</label>
@@ -68,7 +72,7 @@
       <button type="button" id="btnCancelarEdicao" style="display:none; background:#999;">Cancelar</button>
     </form>
 
-    <!-- FILTROS DE RELATÓRIO -->
+    <!-- FILTROS -->
     <div id="filtrosRelatorio">
       <input type="text" id="filtroEscola" placeholder="Filtrar por escola...">
       <input type="month" id="filtroMes">
@@ -91,9 +95,12 @@
     </table>
   </section>
 
-  <!-- SEÇÃO 2: CADASTRO DE TONERS -->
+  <!-- =========================== -->
+  <!--     CADASTRO DE TONERS      -->
+  <!-- =========================== -->
   <section id="secCadastro">
     <h3>Cadastro de Modelos de Toner</h3>
+
     <form id="formCadastroToner">
       <label>Modelo:</label>
       <input type="text" id="cadModelo" required>
@@ -103,6 +110,10 @@
 
       <label>Impressora:</label>
       <input type="text" id="cadImpressora" required>
+
+      <!-- CAMPO NOVO - LOCAL -->
+      <label>Local:</label>
+      <input type="text" id="cadLocal" required>
 
       <button type="submit" id="btnSalvarToner">Cadastrar</button>
       <button type="button" id="btnCancelarToner" style="display:none; background:#999;">Cancelar</button>
@@ -114,6 +125,7 @@
           <th>Modelo</th>
           <th>Quantidade</th>
           <th>Impressora</th>
+          <th>Local</th>
           <th>Ações</th>
         </tr>
       </thead>
@@ -121,16 +133,20 @@
     </table>
   </section>
 
-  <!-- SEÇÃO 3: CONSULTA DE TONERS -->
+  <!-- =========================== -->
+  <!--     CONSULTA DE TONERS      -->
+  <!-- =========================== -->
   <section id="secConsulta">
     <h3>Consulta de Toners Cadastrados</h3>
     <input type="text" id="filtroModeloConsulta" placeholder="Filtrar por modelo...">
+
     <table>
       <thead>
         <tr>
           <th>Modelo</th>
           <th>Quantidade</th>
           <th>Impressora</th>
+          <th>Local</th>
         </tr>
       </thead>
       <tbody id="tabelaConsulta"></tbody>
@@ -138,11 +154,15 @@
   </section>
 </div>
 
-<!-- SCRIPT FIREBASE -->
+<!-- =========================== -->
+<!--   SCRIPT FIREBASE / APP     -->
+<!-- =========================== -->
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
   import { 
-    getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, getDocs, where, deleteDoc 
+    getFirestore, collection, addDoc, onSnapshot, query, orderBy,
+    doc, updateDoc, getDocs, where, deleteDoc 
   } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -157,42 +177,43 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ===== MENU =====
+  /* MENU */
   const botoesMenu = document.querySelectorAll('.menu-btn');
   const secoes = document.querySelectorAll('section');
-  botoesMenu.forEach(botao=>{
-    botao.addEventListener('click',()=>{
-      botoesMenu.forEach(b=>b.classList.remove('active'));
+  botoesMenu.forEach(b=>{
+    b.addEventListener('click',()=>{
+      botoesMenu.forEach(x=>x.classList.remove('active'));
       secoes.forEach(s=>s.classList.remove('active'));
-      botao.classList.add('active');
-      document.getElementById(botao.dataset.section).classList.add('active');
+      b.classList.add('active');
+      document.getElementById(b.dataset.section).classList.add('active');
     });
   });
 
   function escapeHtml(str){return String(str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
-  // ======== CONTROLE DE TROCAS ==========
-  const formRegistro = document.getElementById('formRegistro');
-  const tabelaRegistros = document.getElementById('tabelaRegistros');
-  const escola = document.getElementById('escola');
-  const modelo = document.getElementById('modelo');
-  const quantidade = document.getElementById('quantidade');
-  const data = document.getElementById('data');
-  const tipoOperacao = document.getElementById('tipoOperacao');
-  const btnSalvar = document.getElementById('btnSalvar');
-  const btnCancelarEdicao = document.getElementById('btnCancelarEdicao');
-  const filtroEscola = document.getElementById('filtroEscola');
-  const filtroMes = document.getElementById('filtroMes');
-  const btnImprimirTodos = document.getElementById('btnImprimirTodos');
-  const btnImprimirFiltrado = document.getElementById('btnImprimirFiltrado');
+  /* ================================
+     CONTROLE DE TROCAS
+  ================================= */
 
-  let registros = [];
-  let idEmEdicao = null;
+  const formRegistro=document.getElementById('formRegistro');
+  const tabelaRegistros=document.getElementById('tabelaRegistros');
+  const escola=document.getElementById('escola');
+  const modelo=document.getElementById('modelo');
+  const quantidade=document.getElementById('quantidade');
+  const data=document.getElementById('data');
+  const tipoOperacao=document.getElementById('tipoOperacao');
+  const btnSalvar=document.getElementById('btnSalvar');
+  const btnCancelarEdicao=document.getElementById('btnCancelarEdicao');
+  const filtroEscola=document.getElementById('filtroEscola');
+  const filtroMes=document.getElementById('filtroMes');
+
+  let registros=[];
+  let idEmEdicao=null;
 
   function carregarTrocas(){
-    const q = query(collection(db,'registros'), orderBy('data','desc'));
+    const q=query(collection(db,'registros'), orderBy('data','desc'));
     onSnapshot(q, snap=>{
-      registros = [];
+      registros=[];
       tabelaRegistros.innerHTML='';
       snap.forEach(docSnap=>{
         const r=docSnap.data();
@@ -219,29 +240,30 @@
 
   function aplicarEventos(){
     document.querySelectorAll('.btn-excluir').forEach(btn=>{
-      btn.onclick = async ()=>{
+      btn.onclick=async()=>{
         if(confirm("Deseja excluir este registro?")){
           await deleteDoc(doc(db,'registros',btn.dataset.id));
         }
       };
     });
+
     document.querySelectorAll('.btn-editar').forEach(btn=>{
-      btn.onclick = ()=>{
-        const d = registros.find(r=>r.id===btn.dataset.id);
+      btn.onclick=()=>{
+        const d=registros.find(r=>r.id===btn.dataset.id);
         if(!d) return;
-        idEmEdicao = d.id;
-        escola.value = d.escola;
-        modelo.value = d.modelo;
-        quantidade.value = d.quantidade;
-        data.value = d.data;
-        tipoOperacao.value = d.tipo;
-        btnSalvar.textContent = "Salvar Alterações";
-        btnCancelarEdicao.style.display = "inline-block";
+        idEmEdicao=d.id;
+        escola.value=d.escola;
+        modelo.value=d.modelo;
+        quantidade.value=d.quantidade;
+        data.value=d.data;
+        tipoOperacao.value=d.tipo;
+        btnSalvar.textContent="Salvar Alterações";
+        btnCancelarEdicao.style.display="inline-block";
       };
     });
   }
 
-  btnCancelarEdicao.onclick = ()=>{
+  btnCancelarEdicao.onclick=()=>{
     idEmEdicao=null;
     formRegistro.reset();
     btnSalvar.textContent="Registrar";
@@ -250,17 +272,14 @@
 
   formRegistro.addEventListener('submit', async e=>{
     e.preventDefault();
-    const novaOperacao = {
+    const novaOperacao={
       escola: escola.value.trim(),
       modelo: modelo.value.trim(),
       quantidade: parseInt(quantidade.value),
       data: data.value,
       tipo: tipoOperacao.value
     };
-    if(!novaOperacao.escola || !novaOperacao.modelo || !novaOperacao.quantidade || !novaOperacao.data || !novaOperacao.tipo){
-      alert('Preencha todos os campos.');
-      return;
-    }
+
     if(idEmEdicao){
       await updateDoc(doc(db,'registros',idEmEdicao), novaOperacao);
       idEmEdicao=null;
@@ -270,172 +289,186 @@
       alert("Registro atualizado!");
       return;
     }
-    if(novaOperacao.tipo === "Recarga"){
-      await addDoc(collection(db, 'registros'), novaOperacao);
+
+    // Recarga não mexe no estoque
+    if(novaOperacao.tipo==="Recarga"){
+      await addDoc(collection(db,'registros'), novaOperacao);
       alert("Recarga registrada!");
       formRegistro.reset();
       return;
     }
-    const q = query(collection(db,'toners'), where('modelo','==',novaOperacao.modelo));
-    const qsnap = await getDocs(q);
-    if(qsnap.empty){ alert("Modelo não encontrado no estoque!"); return; }
-    const tonerDoc = qsnap.docs[0];
-    const tonerData = tonerDoc.data();
-    const novaQtd = tonerData.quantidade - novaOperacao.quantidade;
-    if(novaQtd < 0){ alert("Estoque insuficiente!"); return; }
+
+    // Troca reduz estoque
+    const q=query(collection(db,'toners'), where('modelo','==',novaOperacao.modelo));
+    const qsnap=await getDocs(q);
+    if(qsnap.empty){ alert("Modelo não encontrado!"); return; }
+
+    const tonerDoc=qsnap.docs[0];
+    const tonerData=tonerDoc.data();
+    const novaQtd=tonerData.quantidade - novaOperacao.quantidade;
+
+    if(novaQtd<0){ alert("Estoque insuficiente!"); return; }
+
     await updateDoc(doc(db,'toners',tonerDoc.id), {quantidade: novaQtd});
     await addDoc(collection(db,'registros'), novaOperacao);
-    alert("Troca registrada e estoque atualizado!");
+    alert("Troca registrada!");
     formRegistro.reset();
   });
 
-  // ===== FILTROS DINÂMICOS =====
+  /* FILTROS */
   filtroEscola.addEventListener('input', aplicarFiltros);
   filtroMes.addEventListener('input', aplicarFiltros);
 
   function aplicarFiltros(){
-    const escolaFiltro = filtroEscola.value.toLowerCase();
-    const mesFiltro = filtroMes.value;
-    const linhas = tabelaRegistros.querySelectorAll('tr');
-    linhas.forEach(linha=>{
-      const escola = linha.children[0].textContent.toLowerCase();
-      const data = linha.children[3].textContent;
-      const coincideEscola = escola.includes(escolaFiltro);
-      const coincideMes = !mesFiltro || data.startsWith(mesFiltro);
-      linha.style.display = (coincideEscola && coincideMes)?'':'none';
+    const escolaFiltro=filtroEscola.value.toLowerCase();
+    const mesFiltro=filtroMes.value;
+    const linhas=tabelaRegistros.querySelectorAll('tr');
+
+    linhas.forEach(l=>{
+      const escola=l.children[0].textContent.toLowerCase();
+      const data=l.children[3].textContent;
+      const matchEscola=escola.includes(escolaFiltro);
+      const matchMes=!mesFiltro || data.startsWith(mesFiltro);
+      l.style.display = (matchEscola && matchMes)?'':'none';
     });
   }
 
-  // ======== RELATÓRIO IMPRESSO ==========
-  function gerarRelatorio(filtroEscolaVal='', filtroMesVal=''){
-    let filtrados = registros;
-    if(filtroEscolaVal) filtrados = filtrados.filter(r=>r.escola.toLowerCase().includes(filtroEscolaVal.toLowerCase()));
-    if(filtroMesVal) filtrados = filtrados.filter(r=>r.data.startsWith(filtroMesVal));
-    if(filtrados.length===0){ alert('Nenhum registro encontrado.'); return; }
-    let html = `<h2 style="text-align:center;">Relatório de Trocas e Recargas</h2>`;
-    html += `<p><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString()}</p>`;
-    if(filtroMesVal){
-      const [ano, mes] = filtroMesVal.split('-');
-      const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-      html += `<p><strong>Mês:</strong> ${meses[parseInt(mes)-1]} de ${ano}</p>`;
-    }
-    if(filtroEscolaVal) html += `<p><strong>Escola:</strong> ${escapeHtml(filtroEscolaVal)}</p>`;
-    html += `<table border="1" cellspacing="0" cellpadding="6" style="width:100%; border-collapse:collapse;">
-    <tr style="background:#eee;"><th>Escola</th><th>Modelo</th><th>Quantidade</th><th>Data</th><th>Tipo</th></tr>`;
-    filtrados.forEach(r=>{
-      html += `<tr><td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.modelo)}</td><td>${r.quantidade}</td><td>${r.data}</td><td>${escapeHtml(r.tipo)}</td></tr>`;
-    });
-    html += `</table>`;
-    const w = window.open();
-    w.document.write(html);
-    w.document.close();
-    w.print();
-  }
+  /* ===============================
+        CADASTRO DE TONERS
+  =============================== */
 
-  btnImprimirTodos.onclick = ()=>gerarRelatorio();
-  btnImprimirFiltrado.onclick = ()=>gerarRelatorio(filtroEscola.value, filtroMes.value);
-
-  // ======== CADASTRO DE TONERS ==========
   const formCadastroToner=document.getElementById('formCadastroToner');
   const tabelaToners=document.getElementById('tabelaToners');
   const tabelaConsulta=document.getElementById('tabelaConsulta');
   const btnSalvarToner=document.getElementById('btnSalvarToner');
   const btnCancelarToner=document.getElementById('btnCancelarToner');
-  let idTonerEdicao = null;
+
+  let idTonerEdicao=null;
 
   function carregarToners(){
-    const q = query(collection(db,'toners'), orderBy('modelo'));
+    const q=query(collection(db,'toners'), orderBy('modelo'));
     onSnapshot(q, snap=>{
       tabelaToners.innerHTML='';
       tabelaConsulta.innerHTML='';
       snap.forEach(docSnap=>{
         const d=docSnap.data();
+
+        /* tabela de cadastro */
         const tr=document.createElement('tr');
         tr.innerHTML=`
           <td>${escapeHtml(d.modelo)}</td>
           <td>${d.quantidade}</td>
           <td>${escapeHtml(d.impressora)}</td>
+          <td>${escapeHtml(d.local)}</td>
           <td class="btn-acoes">
             <button class="btn-editar" data-id="${docSnap.id}">✏️</button>
             <button class="btn-excluir" data-id="${docSnap.id}">🗑️</button>
           </td>`;
         tabelaToners.appendChild(tr);
+
+        /* tabela de consulta */
         const tr2=document.createElement('tr');
-        tr2.innerHTML=`<td>${escapeHtml(d.modelo)}</td><td>${d.quantidade}</td><td>${escapeHtml(d.impressora)}</td>`;
+        tr2.innerHTML=`
+          <td>${escapeHtml(d.modelo)}</td>
+          <td>${d.quantidade}</td>
+          <td>${escapeHtml(d.impressora)}</td>
+          <td>${escapeHtml(d.local)}</td>`;
         tabelaConsulta.appendChild(tr2);
       });
+
       aplicarFiltroConsulta();
+
+      /* excluir */
       document.querySelectorAll('#tabelaToners .btn-excluir').forEach(btn=>{
-        btn.onclick = async ()=>{ if(confirm("Excluir este toner?")) await deleteDoc(doc(db,'toners',btn.dataset.id)); };
+        btn.onclick=async()=>{
+          if(confirm("Excluir este toner?")){
+            await deleteDoc(doc(db,'toners',btn.dataset.id));
+          }
+        };
       });
+
+      /* editar */
       document.querySelectorAll('#tabelaToners .btn-editar').forEach(btn=>{
-        btn.onclick = async ()=>{
-          const snap = await getDocs(query(collection(db,'toners'), where('__name__','==',btn.dataset.id)));
+        btn.onclick=async()=>{
+          const snap=await getDocs(query(collection(db,'toners'), where('__name__','==',btn.dataset.id)));
           if(!snap.empty){
-            const d = snap.docs[0].data();
-            idTonerEdicao = btn.dataset.id;
-            cadModelo.value = d.modelo;
-            cadQuantidade.value = d.quantidade;
-            cadImpressora.value = d.impressora;
+            const d=snap.docs[0].data();
+            idTonerEdicao=btn.dataset.id;
+
+            cadModelo.value=d.modelo;
+            cadQuantidade.value=d.quantidade;
+            cadImpressora.value=d.impressora;
+            cadLocal.value=d.local;
+
             btnSalvarToner.textContent="Salvar Alterações";
             btnCancelarToner.style.display="inline-block";
           }
         };
       });
+
     });
   }
   carregarToners();
 
-  // ======== FILTRO DE CONSULTA DE TONERS ========
-  const filtroModeloConsulta = document.getElementById('filtroModeloConsulta');
+  /* FILTRO DA ABA CONSULTA */
+  const filtroModeloConsulta=document.getElementById('filtroModeloConsulta');
   filtroModeloConsulta.addEventListener('input', aplicarFiltroConsulta);
+
   function aplicarFiltroConsulta(){
-    const termo = filtroModeloConsulta.value.toLowerCase();
-    const linhas = tabelaConsulta.querySelectorAll('tr');
-    linhas.forEach(linha=>{
-      const modelo = linha.children[0].textContent.toLowerCase();
-      linha.style.display = modelo.includes(termo)?'':'none';
+    const termo=filtroModeloConsulta.value.toLowerCase();
+    const linhas=tabelaConsulta.querySelectorAll('tr');
+    linhas.forEach(l=>{
+      const modelo=l.children[0].textContent.toLowerCase();
+      l.style.display = modelo.includes(termo)?'':'none';
     });
   }
 
-  btnCancelarToner.onclick = ()=>{
+  /* cancelar edição */
+  btnCancelarToner.onclick=()=>{
     idTonerEdicao=null;
     formCadastroToner.reset();
     btnSalvarToner.textContent="Cadastrar";
     btnCancelarToner.style.display="none";
   };
 
+  /* salvar toner */
   formCadastroToner.addEventListener('submit', async e=>{
     e.preventDefault();
-    const novo = {
+
+    const novo={
       modelo: cadModelo.value.trim(),
       quantidade: parseInt(cadQuantidade.value),
-      impressora: cadImpressora.value.trim()
+      impressora: cadImpressora.value.trim(),
+      local: cadLocal.value.trim()
     };
-    if(!novo.modelo || !novo.quantidade || !novo.impressora){ alert("Preencha todos os campos!"); return; }
+
     if(idTonerEdicao){
       await updateDoc(doc(db,'toners',idTonerEdicao), novo);
       idTonerEdicao=null;
+      formCadastroToner.reset();
       btnSalvarToner.textContent="Cadastrar";
       btnCancelarToner.style.display="none";
-      formCadastroToner.reset();
       alert("Toner atualizado!");
-    }else{
-      await addDoc(collection(db,'toners'),novo);
-      formCadastroToner.reset();
-      alert('Toner cadastrado!');
+      return;
     }
+
+    await addDoc(collection(db,'toners'), novo);
+    formCadastroToner.reset();
+    alert("Toner cadastrado!");
   });
 
-  // ======== ATUALIZA LISTAS DE ESCOLAS E MODELOS ========
+  /* atualizar listas */
   function atualizarListas(){
-    const escolas = [...new Set(registros.map(r => r.escola))];
-    const modelos = [...new Set(registros.map(r => r.modelo))];
-    const listaEscolas = document.getElementById('listaEscolas');
-    const listaModelos = document.getElementById('listaModelos');
-    listaEscolas.innerHTML = escolas.map(e => `<option value="${escapeHtml(e)}">`).join('');
-    listaModelos.innerHTML = modelos.map(m => `<option value="${escapeHtml(m)}">`).join('');
+    const escolas=[...new Set(registros.map(r=>r.escola))];
+    const modelos=[...new Set(registros.map(r=>r.modelo))];
+
+    document.getElementById('listaEscolas').innerHTML =
+      escolas.map(e=>`<option value="${escapeHtml(e)}">`).join('');
+
+    document.getElementById('listaModelos').innerHTML =
+      modelos.map(m=>`<option value="${escapeHtml(m)}">`).join('');
   }
+
 </script>
 </body>
 </html>
